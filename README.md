@@ -1,6 +1,6 @@
-# AstroBrick Mission / Spatial Skills Game
+# 小小形状工程师 / Little Shape Engineer
 
-Desktop Unity prototype for a LEGO-inspired 3D spatial construction training game. The player guides a little astronaut on a moon-base build board, selects basic brick types, rotates and places them, receives deterministic geometric diagnosis, answers reflective correction prompts, can ask GPT-powered Mission Control for constructive feedback, and can teach the robot Novi to rebuild the structure.
+Desktop Unity prototype for a child-friendly 3D shape-building game. Children use six basic shapes to repair a colorful floating island: cube, rectangular prism, plate, ramp, triangular prism, and cylinder.
 
 ## Open the project
 
@@ -9,43 +9,35 @@ Desktop Unity prototype for a LEGO-inspired 3D spatial construction training gam
 3. Open `Assets/Scenes/Main.unity`.
 4. Press Play.
 
+## What changed
+
+- The game now opens as `小小形状工程师`, with a fresh child-friendly island interface.
+- The first screen is a bright island bridge task with ocean, islands, a lighthouse, a small robot, and a large 3D build board.
+- The UI is simplified for children: left task card, right blueprint card, bottom shape palette, and only a few large top buttons.
+- Text is short and visual feedback is emphasized through ghost outlines, color, stars, and robot hints.
+
 ## Gameplay
 
-- The game opens directly into `AstroBrick Mission`, a cartoon moon-base scene.
-- All scored structures use a controlled basic brick grammar: bricks, plates, tiles, slopes, wedges, and corner slopes.
-- Use the palette to select a brick, click the grid to place it, rotate it, change layer, drag placed bricks, and orbit the 3D camera freely.
-- Submit the model to a deterministic geometry engine. The engine diagnoses wrong part, wrong footprint, wrong position, wrong layer, wrong orientation, mirror error, support error, missing element, and extra element.
-- Mission Control gives constructive feedback and reflective four-choice correction prompts.
-- In LLM conditions, GPT explains the already-computed geometry facts; it does not score the answer.
-- In Full System, teach Novi using spatial language such as layer, high edge, left/right, target front, robot view, and support.
+- Drag a shape from the bottom palette onto the 3D grid.
+- Drag placed shapes directly to move them.
+- Use the rotate button or `R` to rotate the selected shape.
+- Use the test button or `Enter` to check the build.
+- Right-drag the mouse to orbit the 3D camera.
+- Use the mouse wheel to zoom.
+- Right-click a placed shape to remove it.
 
-## Controls
+## MVP Content
 
-- Left mouse on empty cell: place the selected brick.
-- Left mouse on a brick: drag and drop it.
-- Hold right mouse and drag: rotate the 3D camera.
-- Mouse wheel: zoom the camera.
-- Short right-click on a brick: remove it.
-- `Q` / `E`: change active layer.
-- `R`: rotate the selected brick.
-- `Enter`: submit.
-- `H`: show a hint.
+The prototype includes a 20-level mission set based on the new design:
 
-The project is designed for desktop builds and uses Unity's built-in render pipeline and uGUI. Earlier Block Detective prototype scripts are still in `Assets/Scripts`, but `GameBootstrap` now starts `AstroBrickMissionGame`.
+- Blueprint build tasks
+- Functional build tasks
+- Repair tasks
+- Memory build tasks
+- Viewpoint tasks
+- One integrated final challenge
 
-## GPT setup
-
-1. Press Play in Unity.
-2. Choose `LLM + MCQ` or `Full System`.
-3. Paste your OpenAI API key in the Mission Control panel.
-4. Keep the model as `gpt-5.4-mini` for a normal low-latency tutor, or type another model name.
-5. Click `Ask GPT` after building or submitting.
-
-For a real classroom or published build, route GPT calls through your own small server instead of shipping an API key inside the Unity client.
-
-## LEGO-inspired disclaimer
-
-This is an independent LEGO-inspired spatial learning prototype. It is not affiliated with, sponsored by, or endorsed by the LEGO Group, and it does not use LEGO logos or special functional parts as core scored task materials.
+The project keeps the older scripts in `Assets/Scripts` for reference, but `GameBootstrap` now starts `LittleShapeEngineerGame`.
 
 ## Build target
 

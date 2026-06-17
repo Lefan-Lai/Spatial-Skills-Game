@@ -5,12 +5,12 @@ public static class GameBootstrap
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void StartGame()
     {
-        if (Object.FindObjectOfType<AstroBrickMissionGame>() != null)
+        if (Object.FindObjectOfType<LittleShapeEngineerGame>() != null)
         {
             return;
         }
 
-        GameObject gameObject = new GameObject("AstroBrick Mission");
-        gameObject.AddComponent<AstroBrickMissionGame>();
+        GameObject gameObject = new GameObject("Little Shape Engineer");
+        gameObject.AddComponent<LittleShapeEngineerGame>();
     }
 }
