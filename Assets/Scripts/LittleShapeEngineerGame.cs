@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -36,6 +36,19 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         Memory,
         Viewpoint,
         Challenge
+    }
+
+    private enum GameScreen
+    {
+        Start,
+        Profile,
+        ShapeLibrary,
+        WorldMap,
+        LevelSelect,
+        Briefing,
+        Build,
+        Complete,
+        Settings
     }
 
     private sealed class ShapeDefinition
@@ -151,6 +164,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     private RectTransform sideProjectionGrid;
 
     private int levelIndex;
+    private GameScreen currentScreen = GameScreen.Start;
     private ShapeKind selectedKind = ShapeKind.Cube;
     private int selectedRotation;
     private bool draggingFromPalette;
@@ -176,9 +190,12 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     private int hintCount;
     private Coroutine memoryHideRoutine;
     private Coroutine robotWalkRoutine;
-    private string hudFeedbackText = "拖动形状到发光网格里。";
+    private string hudFeedbackText = "Drag a shape to the glowing grid.";
     private string hudRobotHintText = "";
-    private string hudStarText = "★ ☆ ☆";
+    private string hudStarText = "* - -";
+    private string playerName = "Riley";
+    private int selectedLibraryShapeIndex;
+    private readonly HashSet<int> completedLevels = new HashSet<int>();
     private readonly List<Rect> immediateHudRects = new List<Rect>();
     private readonly Dictionary<string, Texture2D> immediateTextures = new Dictionary<string, Texture2D>();
     private GUIStyle panelStyle;
@@ -212,8 +229,18 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     private void Update()
     {
         HandleCameraOrbit();
-        HandleKeyboardShortcuts();
-        HandleBuildInput();
+        if (currentScreen == GameScreen.Build)
+        {
+            HandleKeyboardShortcuts();
+            HandleBuildInput();
+        }
+        else
+        {
+            HideCursor();
+            draggingFromPalette = false;
+            draggingExisting = false;
+        }
+
         AnimateWorld();
     }
 
@@ -231,11 +258,40 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         GUI.matrix = Matrix4x4.TRS(hudOffset, Quaternion.identity, new Vector3(hudScale, hudScale, 1f));
         GUI.depth = 0;
 
-        HandleImmediatePaletteEvents();
-        DrawImmediateTopBar();
-        DrawImmediateMissionCard();
-        DrawImmediateBlueprintCard();
-        DrawImmediatePalette();
+        switch (currentScreen)
+        {
+            case GameScreen.Start:
+                DrawStartScreen();
+                break;
+            case GameScreen.Profile:
+                DrawProfileScreen();
+                break;
+            case GameScreen.ShapeLibrary:
+                DrawShapeLibraryScreen();
+                break;
+            case GameScreen.WorldMap:
+                DrawWorldMapScreen();
+                break;
+            case GameScreen.LevelSelect:
+                DrawLevelSelectScreen();
+                break;
+            case GameScreen.Briefing:
+                DrawBriefingScreen();
+                break;
+            case GameScreen.Complete:
+                DrawLevelCompleteScreen();
+                break;
+            case GameScreen.Settings:
+                DrawSettingsScreen();
+                break;
+            default:
+                HandleImmediatePaletteEvents();
+                DrawImmediateTopBar();
+                DrawImmediateMissionCard();
+                DrawImmediateBlueprintCard();
+                DrawImmediatePalette();
+                break;
+        }
 
         GUI.matrix = oldMatrix;
     }
@@ -295,6 +351,313 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         return texture;
     }
 
+    private void DrawStartScreen()
+    {
+        DrawPanel(new Rect(520f, 120f, 880f, 760f), new Color(1f, 0.98f, 0.92f, 0.96f));
+        GUI.Label(new Rect(560f, 165f, 800f, 70f), "Little Shape Engineer", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 54, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
+        GUI.Label(new Rect(560f, 235f, 800f, 44f), "Build, Rotate, Test, and Fix!", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 30, FontStyle.Bold, new Color(0.18f, 0.46f, 0.86f)));
+        GUI.Label(new Rect(610f, 300f, 700f, 70f), "Every big build starts with simple shapes.", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 28, FontStyle.Normal, new Color(0.12f, 0.16f, 0.22f)));
+
+        if (GUI.Button(new Rect(760f, 410f, 400f, 72f), "Start Adventure", testButtonStyle))
+        {
+            currentScreen = GameScreen.Profile;
+            LogEvent("start_button", "Start Adventure");
+        }
+
+        if (GUI.Button(new Rect(760f, 502f, 400f, 72f), "Continue", buttonStyle))
+        {
+            currentScreen = GameScreen.WorldMap;
+            LogEvent("start_button", "Continue");
+        }
+
+        if (GUI.Button(new Rect(760f, 594f, 400f, 72f), "Shape Library", buttonStyle))
+        {
+            currentScreen = GameScreen.ShapeLibrary;
+            LogEvent("start_button", "Shape Library");
+        }
+
+        if (GUI.Button(new Rect(760f, 686f, 400f, 72f), "Settings", buttonStyle))
+        {
+            currentScreen = GameScreen.Settings;
+            LogEvent("start_button", "Settings");
+        }
+
+        GUI.Label(new Rect(760f, 806f, 400f, 34f), "Version 0.1 MVP", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 18, FontStyle.Bold, new Color(0.36f, 0.45f, 0.55f)));
+    }
+
+    private void DrawProfileScreen()
+    {
+        DrawPanel(new Rect(500f, 140f, 920f, 720f), new Color(0.94f, 0.99f, 1f, 0.96f));
+        GUI.Label(new Rect(560f, 180f, 800f, 58f), "Choose Your Engineer", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 46, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
+        GUI.Label(new Rect(650f, 262f, 620f, 42f), "This is your friendly builder profile.", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 25, FontStyle.Normal, new Color(0.12f, 0.16f, 0.22f)));
+
+        DrawPanel(new Rect(760f, 340f, 400f, 250f), new Color(1f, 1f, 1f, 0.92f));
+        DrawRobotFace(new Rect(908f, 368f, 104f, 104f));
+        GUI.Label(new Rect(820f, 492f, 280f, 42f), playerName, MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 32, FontStyle.Bold, new Color(0.1f, 0.18f, 0.27f)));
+        GUI.Label(new Rect(820f, 538f, 280f, 30f), "Beginner Shape Island", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 20, FontStyle.Bold, new Color(0.2f, 0.43f, 0.82f)));
+
+        if (GUI.Button(new Rect(760f, 640f, 400f, 72f), "Start Building", testButtonStyle))
+        {
+            currentScreen = GameScreen.WorldMap;
+            LogEvent("profile_start", playerName);
+        }
+
+        if (GUI.Button(new Rect(760f, 730f, 400f, 60f), "Back", buttonStyle))
+        {
+            currentScreen = GameScreen.Start;
+        }
+    }
+
+    private void DrawShapeLibraryScreen()
+    {
+        DrawPanel(new Rect(120f, 90f, 1680f, 900f), new Color(1f, 0.98f, 0.92f, 0.96f));
+        GUI.Label(new Rect(170f, 120f, 1540f, 58f), "Shape Library", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 46, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
+
+        ShapeKind[] order = OrderedShapeKinds();
+        for (int i = 0; i < order.Length; i++)
+        {
+            ShapeKind kind = order[i];
+            Rect button = new Rect(180f, 220f + i * 96f, 360f, 72f);
+            GUIStyle style = i == selectedLibraryShapeIndex ? selectedPaletteStyle : buttonStyle;
+            if (GUI.Button(button, shapes[kind].Name, style))
+            {
+                selectedLibraryShapeIndex = i;
+            }
+        }
+
+        ShapeKind selected = order[Mathf.Clamp(selectedLibraryShapeIndex, 0, order.Length - 1)];
+        ShapeDefinition shape = shapes[selected];
+        DrawPanel(new Rect(610f, 220f, 520f, 430f), new Color(0.94f, 0.99f, 1f, 0.92f));
+        DrawShapeBadge(new Rect(760f, 305f, 220f, 150f), selected);
+        GUI.Label(new Rect(650f, 500f, 440f, 48f), shape.Name, MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 36, FontStyle.Bold, new Color(0.1f, 0.18f, 0.27f)));
+        GUI.Label(new Rect(650f, 558f, 440f, 70f), ShapeLibraryDescription(selected), MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 23, FontStyle.Normal, new Color(0.12f, 0.16f, 0.22f)));
+
+        DrawPanel(new Rect(1180f, 220f, 520f, 430f), new Color(1f, 1f, 1f, 0.9f));
+        GUI.Label(new Rect(1220f, 250f, 440f, 40f), "What can it build?", smallStyle);
+        GUI.Label(new Rect(1220f, 315f, 440f, 250f), ShapeLibraryUses(selected), bodyStyle);
+
+        if (GUI.Button(new Rect(580f, 760f, 240f, 68f), "Try It", testButtonStyle))
+        {
+            LoadLevel(0);
+            currentScreen = GameScreen.Briefing;
+        }
+
+        if (GUI.Button(new Rect(860f, 760f, 240f, 68f), "Next Shape", buttonStyle))
+        {
+            selectedLibraryShapeIndex = (selectedLibraryShapeIndex + 1) % order.Length;
+        }
+
+        if (GUI.Button(new Rect(1140f, 760f, 240f, 68f), "Back", buttonStyle))
+        {
+            currentScreen = GameScreen.Start;
+        }
+    }
+
+    private void DrawWorldMapScreen()
+    {
+        DrawPanel(new Rect(120f, 90f, 1680f, 900f), new Color(0.94f, 0.99f, 1f, 0.94f));
+        GUI.Label(new Rect(170f, 120f, 1540f, 58f), "Shape Island Map", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 46, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
+        GUI.Label(new Rect(480f, 186f, 960f, 42f), "Choose a world. Each world fixes one part of the island.", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 24, FontStyle.Normal, new Color(0.12f, 0.16f, 0.22f)));
+
+        string[] worlds = new string[]
+        {
+            "Beginner Shape Island",
+            "Rotation Workshop",
+            "Blueprint Tower",
+            "Engineering Bay",
+            "Master Shape City"
+        };
+
+        for (int i = 0; i < worlds.Length; i++)
+        {
+            float x = 230f + (i % 3) * 500f;
+            float y = 280f + (i / 3) * 260f;
+            DrawPanel(new Rect(x, y, 410f, 190f), new Color(1f, 1f, 1f, 0.88f));
+            GUI.Label(new Rect(x + 28f, y + 24f, 350f, 44f), worlds[i], MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 28, FontStyle.Bold, new Color(0.1f, 0.18f, 0.27f)));
+            GUI.Label(new Rect(x + 34f, y + 82f, 340f, 50f), WorldMapDescription(i), MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 20, FontStyle.Normal, new Color(0.16f, 0.22f, 0.29f)));
+            if (GUI.Button(new Rect(x + 95f, y + 132f, 220f, 46f), "Open Levels", buttonStyle))
+            {
+                currentScreen = GameScreen.LevelSelect;
+                LogEvent("world_select", worlds[i]);
+            }
+        }
+
+        if (GUI.Button(new Rect(140f, 900f, 180f, 58f), "Back", buttonStyle))
+        {
+            currentScreen = GameScreen.Start;
+        }
+    }
+
+    private void DrawLevelSelectScreen()
+    {
+        DrawPanel(new Rect(90f, 70f, 1740f, 940f), new Color(1f, 0.98f, 0.92f, 0.96f));
+        GUI.Label(new Rect(150f, 100f, 1620f, 54f), "Choose a Level", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 44, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
+
+        for (int i = 0; i < levels.Count; i++)
+        {
+            LevelData level = levels[i];
+            int col = i % 5;
+            int row = i / 5;
+            Rect card = new Rect(150f + col * 330f, 190f + row * 170f, 290f, 130f);
+            DrawPanel(card, completedLevels.Contains(i) ? new Color(0.86f, 1f, 0.78f, 0.92f) : new Color(1f, 1f, 1f, 0.9f));
+            GUI.Label(new Rect(card.x + 16f, card.y + 14f, 258f, 30f), "Level " + level.Number, smallStyle);
+            GUI.Label(new Rect(card.x + 16f, card.y + 46f, 258f, 38f), level.Title, MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 21, FontStyle.Bold, new Color(0.1f, 0.18f, 0.27f)));
+            GUI.Label(new Rect(card.x + 16f, card.y + 84f, 258f, 24f), LevelTaskLabel(level) + "  " + DifficultyDots(level.Difficulty), MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 17, FontStyle.Normal, new Color(0.25f, 0.35f, 0.45f)));
+            if (GUI.Button(new Rect(card.x + 178f, card.y + 82f, 90f, 34f), "Play", buttonStyle))
+            {
+                LoadLevel(i);
+                currentScreen = GameScreen.Briefing;
+            }
+        }
+
+        if (GUI.Button(new Rect(140f, 928f, 180f, 58f), "World Map", buttonStyle))
+        {
+            currentScreen = GameScreen.WorldMap;
+        }
+    }
+
+    private void DrawBriefingScreen()
+    {
+        LevelData level = CurrentLevel;
+        DrawPanel(new Rect(460f, 120f, 1000f, 800f), new Color(1f, 0.98f, 0.92f, 0.96f));
+        GUI.Label(new Rect(520f, 160f, 880f, 42f), "Level " + level.Number + ": " + level.Title, MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 38, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
+        GUI.Label(new Rect(650f, 220f, 620f, 34f), LevelTaskLabel(level) + "   " + DifficultyDots(level.Difficulty), MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 23, FontStyle.Bold, new Color(0.18f, 0.46f, 0.86f)));
+
+        DrawPanel(new Rect(560f, 300f, 800f, 190f), new Color(1f, 1f, 1f, 0.9f));
+        GUI.Label(new Rect(600f, 322f, 720f, 40f), "Goal", smallStyle);
+        GUI.Label(new Rect(600f, 372f, 720f, 90f), level.Goal, bodyStyle);
+
+        DrawPanel(new Rect(560f, 520f, 800f, 150f), new Color(0.85f, 0.95f, 1f, 0.9f));
+        DrawRobotFace(new Rect(600f, 552f, 84f, 84f));
+        GUI.Label(new Rect(710f, 548f, 580f, 86f), level.Hint, bodyStyle);
+
+        if (GUI.Button(new Rect(660f, 735f, 280f, 72f), "Start Building", testButtonStyle))
+        {
+            currentScreen = GameScreen.Build;
+            LogEvent("briefing_start", level.Title);
+        }
+
+        if (GUI.Button(new Rect(980f, 735f, 280f, 72f), "Back", buttonStyle))
+        {
+            currentScreen = GameScreen.LevelSelect;
+        }
+    }
+
+    private void DrawLevelCompleteScreen()
+    {
+        LevelData level = CurrentLevel;
+        DrawPanel(new Rect(500f, 150f, 920f, 720f), new Color(0.94f, 0.99f, 1f, 0.96f));
+        GUI.Label(new Rect(560f, 190f, 800f, 60f), "Great Build!", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 52, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
+        GUI.Label(new Rect(560f, 270f, 800f, 48f), "* * *", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 48, FontStyle.Bold, new Color(1f, 0.68f, 0.1f)));
+        GUI.Label(new Rect(620f, 350f, 680f, 86f), "You used simple shapes to fix part of Shape Island.", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 28, FontStyle.Normal, new Color(0.12f, 0.16f, 0.22f)));
+        GUI.Label(new Rect(620f, 460f, 680f, 70f), "Robot says: Try looking from the top on the next build.", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 24, FontStyle.Bold, new Color(0.18f, 0.46f, 0.86f)));
+
+        if (GUI.Button(new Rect(660f, 610f, 280f, 70f), "Next Level", testButtonStyle))
+        {
+            NextLevel();
+        }
+
+        if (GUI.Button(new Rect(980f, 610f, 280f, 70f), "Level Select", buttonStyle))
+        {
+            currentScreen = GameScreen.LevelSelect;
+        }
+
+        if (GUI.Button(new Rect(820f, 705f, 280f, 60f), "World Map", buttonStyle))
+        {
+            currentScreen = GameScreen.WorldMap;
+        }
+    }
+
+    private void DrawSettingsScreen()
+    {
+        DrawPanel(new Rect(560f, 160f, 800f, 660f), new Color(1f, 0.98f, 0.92f, 0.96f));
+        GUI.Label(new Rect(620f, 205f, 680f, 52f), "Settings", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 44, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
+        GUI.Label(new Rect(650f, 300f, 620f, 210f), "Child-friendly MVP settings are simple for now.\n\nCamera: right-drag to look around.\nZoom: mouse wheel.\nRotate shape: Rotate button or R.\nRun Test: Run Test button or Enter.", bodyStyle);
+
+        if (GUI.Button(new Rect(820f, 640f, 280f, 70f), "Back", buttonStyle))
+        {
+            currentScreen = GameScreen.Start;
+        }
+    }
+
+    private ShapeKind[] OrderedShapeKinds()
+    {
+        return new ShapeKind[]
+        {
+            ShapeKind.Cube,
+            ShapeKind.RectangularPrism,
+            ShapeKind.Plate,
+            ShapeKind.Ramp,
+            ShapeKind.TriangularPrism,
+            ShapeKind.Cylinder
+        };
+    }
+
+    private string ShapeLibraryDescription(ShapeKind kind)
+    {
+        switch (kind)
+        {
+            case ShapeKind.Cube:
+                return "A cube is the basic block. It is the same size in every direction.";
+            case ShapeKind.RectangularPrism:
+                return "This block has a long side and a short side. Turn it to choose the direction.";
+            case ShapeKind.Plate:
+                return "A plate is flat and thin. It is useful for floors, roads, and platforms.";
+            case ShapeKind.Ramp:
+                return "A ramp connects a low place to a high place.";
+            case ShapeKind.TriangularPrism:
+                return "A triangular prism has a triangle face. It is useful for roofs and pointed parts.";
+            case ShapeKind.Cylinder:
+                return "A cylinder can stand up or lie down. It has a round side.";
+            default:
+                return "Simple shapes can become big builds.";
+        }
+    }
+
+    private string ShapeLibraryUses(ShapeKind kind)
+    {
+        switch (kind)
+        {
+            case ShapeKind.Cube:
+                return "Walls\nTowers\nSteps\nBases";
+            case ShapeKind.RectangularPrism:
+                return "Bridges\nBeams\nDoor frames\nWindmill blades";
+            case ShapeKind.Plate:
+                return "Floors\nRoads\nBridge surfaces\nPlatforms";
+            case ShapeKind.Ramp:
+                return "Slopes\nSlides\nRoof sides\nHigh-low paths";
+            case ShapeKind.TriangularPrism:
+                return "Roofs\nTower tops\nPointed parts\nSupports";
+            case ShapeKind.Cylinder:
+                return "Columns\nWheel axles\nWindmill centers\nLighthouse bodies";
+            default:
+                return "Many island repairs";
+        }
+    }
+
+    private string WorldMapDescription(int index)
+    {
+        switch (index)
+        {
+            case 0:
+                return "Learn the six basic shapes.";
+            case 1:
+                return "Turn long blocks and ramps.";
+            case 2:
+                return "Build from top, front, and side views.";
+            case 3:
+                return "Make bridges, roads, and slides work.";
+            default:
+                return "Use all your shape skills together.";
+        }
+    }
+
+    private string DifficultyDots(int difficulty)
+    {
+        int dots = Mathf.Clamp(difficulty, 1, 5);
+        return new string('*', dots);
+    }
+
     private void UpdateImmediateHudRects()
     {
         immediateHudRects.Clear();
@@ -308,41 +671,41 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private void DrawImmediateTopBar()
     {
-        if (GUI.Button(new Rect(20f, 24f, 100f, 82f), "返回", buttonStyle))
+        if (GUI.Button(new Rect(20f, 24f, 100f, 82f), "Back", buttonStyle))
         {
-            PreviousLevel();
+            currentScreen = GameScreen.Briefing;
         }
 
-        if (GUI.Button(new Rect(136f, 24f, 100f, 82f), "主页", buttonStyle))
+        if (GUI.Button(new Rect(136f, 24f, 100f, 82f), "Map", buttonStyle))
         {
-            LoadLevel(0);
+            currentScreen = GameScreen.WorldMap;
         }
 
         DrawPanel(new Rect(590f, 18f, 740f, 98f), new Color(1f, 1f, 1f, 0.92f));
         GUI.enabled = undoStack.Count > 0;
-        if (GUI.Button(new Rect(615f, 32f, 132f, 70f), "撤销", buttonStyle))
+        if (GUI.Button(new Rect(615f, 32f, 132f, 70f), "Undo", buttonStyle))
         {
             Undo();
         }
 
         GUI.enabled = redoStack.Count > 0;
-        if (GUI.Button(new Rect(765f, 32f, 132f, 70f), "重做", buttonStyle))
+        if (GUI.Button(new Rect(765f, 32f, 132f, 70f), "Redo", buttonStyle))
         {
             Redo();
         }
 
         GUI.enabled = true;
-        if (GUI.Button(new Rect(915f, 32f, 150f, 70f), "旋转", buttonStyle))
+        if (GUI.Button(new Rect(915f, 32f, 150f, 70f), "Rotate", buttonStyle))
         {
             RotateSelected();
         }
 
-        if (GUI.Button(new Rect(1085f, 28f, 215f, 78f), "测试", testButtonStyle))
+        if (GUI.Button(new Rect(1085f, 28f, 215f, 78f), "Run Test", testButtonStyle))
         {
             RunTest();
         }
 
-        if (GUI.Button(new Rect(1710f, 24f, 170f, 82f), "下一关", buttonStyle))
+        if (GUI.Button(new Rect(1710f, 24f, 170f, 82f), "Next", buttonStyle))
         {
             NextLevel();
         }
@@ -367,7 +730,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
         Rect progress = new Rect(44f, 704f, 286f, 150f);
         DrawPanel(progress, new Color(1f, 1f, 1f, 0.86f));
-        GUI.Label(new Rect(62f, 724f, 220f, 34f), "进度  第 " + level.Number + " / " + levels.Count + " 关", smallStyle);
+        GUI.Label(new Rect(62f, 724f, 220f, 34f), "Progress  Level " + level.Number + " / " + levels.Count, smallStyle);
         GUI.Label(new Rect(62f, 776f, 236f, 42f), hudStarText, MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 40, FontStyle.Bold, new Color(1f, 0.68f, 0.1f)));
     }
 
@@ -387,12 +750,12 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         Rect panel = new Rect(1530f, 150f, 366f, 744f);
         DrawPanel(panel, new Color(0.94f, 0.99f, 1f, 0.96f));
         DrawSolid(new Rect(1530f, 150f, 366f, 72f), new Color(0.1f, 0.47f, 0.9f, 1f));
-        GUI.Label(new Rect(1530f, 158f, 366f, 52f), "图纸", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 34, FontStyle.Bold, Color.white));
+        GUI.Label(new Rect(1530f, 158f, 366f, 52f), "Blueprint", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 34, FontStyle.Bold, Color.white));
         GUI.Label(new Rect(1562f, 246f, 280f, 34f), BlueprintLabel(level), smallStyle);
 
-        DrawProjectionImmediate(new Rect(1560f, 302f, 306f, 150f), "俯视图", 0);
-        DrawProjectionImmediate(new Rect(1560f, 486f, 306f, 150f), "正面图", 1);
-        DrawProjectionImmediate(new Rect(1560f, 670f, 306f, 150f), "侧面图", 2);
+        DrawProjectionImmediate(new Rect(1560f, 302f, 306f, 150f), "Top View", 0);
+        DrawProjectionImmediate(new Rect(1560f, 486f, 306f, 150f), "Front View", 1);
+        DrawProjectionImmediate(new Rect(1560f, 670f, 306f, 150f), "Side View", 2);
     }
 
     private void DrawProjectionImmediate(Rect rect, string label, int mode)
@@ -499,11 +862,11 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         else if (kind == ShapeKind.Ramp)
         {
             DrawSolid(new Rect(rect.x + 14f, rect.y + 30f, rect.width - 28f, 18f), color);
-            GUI.Label(new Rect(rect.x, rect.y - 2f, rect.width, rect.height), "▲", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 52, FontStyle.Bold, color));
+            GUI.Label(new Rect(rect.x, rect.y - 2f, rect.width, rect.height), "/\\", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 52, FontStyle.Bold, color));
         }
         else if (kind == ShapeKind.TriangularPrism)
         {
-            GUI.Label(rect, "▲", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 56, FontStyle.Bold, color));
+            GUI.Label(rect, "/\\", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 56, FontStyle.Bold, color));
         }
         else if (kind == ShapeKind.Cylinder)
         {
@@ -615,12 +978,12 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private void BuildShapeLibrary()
     {
-        AddShape(ShapeKind.Cube, "方块", "方块", new Color(0.14f, 0.46f, 0.91f), new Vector3(0.92f, 0.92f, 0.92f), false);
-        AddShape(ShapeKind.RectangularPrism, "长方体", "长条", new Color(0.41f, 0.82f, 0.15f), new Vector3(0.9f, 0.5f, 2.05f), true);
-        AddShape(ShapeKind.Plate, "薄板", "薄板", new Color(1f, 0.78f, 0.17f), new Vector3(1.7f, 0.24f, 0.9f), true);
-        AddShape(ShapeKind.Ramp, "斜坡", "斜坡", new Color(0.56f, 0.38f, 0.96f), new Vector3(0.95f, 0.88f, 1.75f), true);
-        AddShape(ShapeKind.TriangularPrism, "三角柱", "三角", new Color(0.98f, 0.48f, 0.11f), new Vector3(1.75f, 0.95f, 0.9f), true);
-        AddShape(ShapeKind.Cylinder, "圆柱", "圆柱", new Color(0.18f, 0.74f, 0.86f), new Vector3(0.88f, 0.95f, 0.88f), true);
+        AddShape(ShapeKind.Cube, "Cube", "Cube", new Color(0.14f, 0.46f, 0.91f), new Vector3(0.92f, 0.92f, 0.92f), false);
+        AddShape(ShapeKind.RectangularPrism, "Rectangular Prism", "Long Block", new Color(0.41f, 0.82f, 0.15f), new Vector3(0.9f, 0.5f, 2.05f), true);
+        AddShape(ShapeKind.Plate, "Plate", "Plate", new Color(1f, 0.78f, 0.17f), new Vector3(1.7f, 0.24f, 0.9f), true);
+        AddShape(ShapeKind.Ramp, "Ramp", "Ramp", new Color(0.56f, 0.38f, 0.96f), new Vector3(0.95f, 0.88f, 1.75f), true);
+        AddShape(ShapeKind.TriangularPrism, "Triangular Prism", "Triangle", new Color(0.98f, 0.48f, 0.11f), new Vector3(1.75f, 0.95f, 0.9f), true);
+        AddShape(ShapeKind.Cylinder, "Cylinder", "Cylinder", new Color(0.18f, 0.74f, 0.86f), new Vector3(0.88f, 0.95f, 0.88f), true);
     }
 
     private void AddShape(ShapeKind kind, string name, string shortName, Color color, Vector3 size, bool directional)
@@ -639,20 +1002,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     {
         levels.Clear();
 
-        LevelData bridge = Level(1, "工程海湾", TaskKind.Functional, "修好小桥", "搭一座小桥，让小机器人走到灯塔。", "先把桥面连起来，再看看两边有没有对齐。", 1);
-        AddInventory(bridge, ShapeKind.RectangularPrism, 5);
-        AddInventory(bridge, ShapeKind.Cube, 8);
-        AddInventory(bridge, ShapeKind.Plate, 6);
-        bridge.Target.Add(T(ShapeKind.Cube, -3, 0, -1, 0));
-        bridge.Target.Add(T(ShapeKind.Cube, 3, 0, -1, 0));
-        bridge.Target.Add(T(ShapeKind.RectangularPrism, -2, 1, 0, 1));
-        bridge.Target.Add(T(ShapeKind.RectangularPrism, 0, 1, 0, 1));
-        bridge.Target.Add(T(ShapeKind.RectangularPrism, 2, 1, 0, 1));
-        bridge.Target.Add(T(ShapeKind.Plate, -4, 1, 0, 1));
-        bridge.Target.Add(T(ShapeKind.Plate, 4, 1, 0, 1));
-        levels.Add(bridge);
-
-        LevelData stairs = Level(2, "形状新手岛", TaskKind.Blueprint, "三层小台阶", "用方块搭出一格一格升高的小台阶。", "每一层都比前一层高一格。", 1);
+        LevelData stairs = Level(1, "Beginner Shape Island", TaskKind.Blueprint, "Three-Step Cube Stair", "Build a stair with cubes. Each step is one layer higher.", "Start with the lowest cube. Then build up one layer at a time.", 1);
         AddInventory(stairs, ShapeKind.Cube, 8);
         stairs.Target.Add(T(ShapeKind.Cube, -1, 0, 0, 0));
         stairs.Target.Add(T(ShapeKind.Cube, 0, 0, 0, 0));
@@ -662,7 +1012,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         stairs.Target.Add(T(ShapeKind.Cube, 1, 2, 0, 0));
         levels.Add(stairs);
 
-        LevelData table = Level(3, "形状新手岛", TaskKind.Blueprint, "小桌子", "用四个方块和一块薄板搭一个小桌子。", "先放四条腿，再把薄板放在上面。", 1);
+        LevelData table = Level(2, "Beginner Shape Island", TaskKind.Blueprint, "Small Table", "Build a small table with cube legs and a flat plate top.", "The plate needs support under each corner.", 1);
         AddInventory(table, ShapeKind.Cube, 6);
         AddInventory(table, ShapeKind.Plate, 3);
         table.Target.Add(T(ShapeKind.Cube, -1, 0, -1, 0));
@@ -672,9 +1022,10 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         table.Target.Add(T(ShapeKind.Plate, 0, 1, 0, 1));
         levels.Add(table);
 
-        LevelData platform = Level(4, "形状新手岛", TaskKind.Blueprint, "连接平台", "用长方体把两个小平台连起来。", "长边要朝向两个平台之间。", 2);
+        LevelData platform = Level(3, "Beginner Shape Island", TaskKind.Functional, "Connect Two Platforms", "Use long blocks to connect two platforms at the same height.", "Turn the long block so it reaches the other platform.", 2);
         AddInventory(platform, ShapeKind.Cube, 8);
         AddInventory(platform, ShapeKind.RectangularPrism, 4);
+        AddInventory(platform, ShapeKind.Plate, 2);
         platform.Target.Add(T(ShapeKind.Cube, -3, 0, 0, 0));
         platform.Target.Add(T(ShapeKind.Cube, -3, 1, 0, 0));
         platform.Target.Add(T(ShapeKind.Cube, 3, 0, 0, 0));
@@ -683,7 +1034,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         platform.Target.Add(T(ShapeKind.RectangularPrism, 1, 2, 0, 1));
         levels.Add(platform);
 
-        LevelData houseBase = Level(5, "图纸塔", TaskKind.Blueprint, "小屋底座", "用薄板和方块搭出小屋的底座。", "先看底座的长和宽，再搭四个角。", 2);
+        LevelData houseBase = Level(4, "Beginner Shape Island", TaskKind.Blueprint, "House Base", "Use plates and cubes to make a small house base.", "Look from the top. The base should make a rectangle.", 2);
         AddInventory(houseBase, ShapeKind.Cube, 12);
         AddInventory(houseBase, ShapeKind.Plate, 6);
         houseBase.Target.Add(T(ShapeKind.Plate, -1, 0, -1, 1));
@@ -696,7 +1047,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         houseBase.Target.Add(T(ShapeKind.Cube, 2, 1, 1, 0));
         levels.Add(houseBase);
 
-        LevelData wallDoor = Level(6, "图纸塔", TaskKind.Blueprint, "门洞墙", "搭一面有门洞的小墙。", "中间留出门，左右两边一样高。", 2);
+        LevelData wallDoor = Level(5, "Beginner Shape Island", TaskKind.Blueprint, "Wall and Door Frame", "Build a wall with an open door space.", "Leave the middle space open for the door.", 2);
         AddInventory(wallDoor, ShapeKind.Cube, 12);
         AddInventory(wallDoor, ShapeKind.RectangularPrism, 3);
         wallDoor.Target.Add(T(ShapeKind.Cube, -2, 0, 0, 0));
@@ -706,7 +1057,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         wallDoor.Target.Add(T(ShapeKind.RectangularPrism, 0, 2, 0, 1));
         levels.Add(wallDoor);
 
-        LevelData roof = Level(7, "旋转工坊", TaskKind.Blueprint, "小屋屋顶", "用三角柱和斜坡搭一个屋顶。", "屋顶的斜面要朝外。", 3);
+        LevelData roof = Level(6, "Rotation Workshop", TaskKind.Blueprint, "Roof Builder", "Use ramps and a triangular prism to build a roof.", "The two roof sides should meet in the middle.", 3);
         AddInventory(roof, ShapeKind.TriangularPrism, 4);
         AddInventory(roof, ShapeKind.Ramp, 4);
         AddInventory(roof, ShapeKind.Cube, 6);
@@ -717,17 +1068,30 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         roof.Target.Add(T(ShapeKind.TriangularPrism, 0, 2, 0, 1));
         levels.Add(roof);
 
-        LevelData tower = Level(8, "图纸塔", TaskKind.Blueprint, "小灯塔", "用方块、长方体和圆柱搭一座小塔。", "圆柱是灯塔的灯，放在最上面。", 3);
+        LevelData window = Level(7, "Rotation Workshop", TaskKind.Blueprint, "Window Structure", "Build a simple window frame with cubes and plates.", "The window should be one layer above the floor.", 3);
+        AddInventory(window, ShapeKind.Cube, 8);
+        AddInventory(window, ShapeKind.Plate, 4);
+        AddInventory(window, ShapeKind.RectangularPrism, 2);
+        window.Target.Add(T(ShapeKind.Cube, -1, 0, 0, 0));
+        window.Target.Add(T(ShapeKind.Cube, 1, 0, 0, 0));
+        window.Target.Add(T(ShapeKind.Cube, -1, 1, 0, 0));
+        window.Target.Add(T(ShapeKind.Cube, 1, 1, 0, 0));
+        window.Target.Add(T(ShapeKind.Plate, 0, 1, 0, 1));
+        window.Target.Add(T(ShapeKind.RectangularPrism, 0, 2, 0, 1));
+        levels.Add(window);
+
+        LevelData tower = Level(8, "Rotation Workshop", TaskKind.Blueprint, "Small Tower", "Use cubes, plates, and a cylinder to build a small tower.", "The cylinder should stand in the center of the base.", 3);
         AddInventory(tower, ShapeKind.Cube, 8);
         AddInventory(tower, ShapeKind.RectangularPrism, 4);
+        AddInventory(tower, ShapeKind.Plate, 3);
         AddInventory(tower, ShapeKind.Cylinder, 3);
         tower.Target.Add(T(ShapeKind.Cube, 0, 0, 0, 0));
         tower.Target.Add(T(ShapeKind.Cube, 0, 1, 0, 0));
-        tower.Target.Add(T(ShapeKind.RectangularPrism, 0, 2, 0, 0));
+        tower.Target.Add(T(ShapeKind.Plate, 0, 2, 0, 1));
         tower.Target.Add(T(ShapeKind.Cylinder, 0, 3, 0, 0));
         levels.Add(tower);
 
-        LevelData ramp = Level(9, "旋转工坊", TaskKind.Functional, "上坡小路", "用斜坡连接低平台和高平台。", "斜坡低的一端要朝向小机器人。", 3);
+        LevelData ramp = Level(9, "Rotation Workshop", TaskKind.Functional, "Ramp to High Platform", "Use a ramp to connect a low platform to a high platform.", "The ramp is in the right place only if it points toward the high platform.", 3);
         AddInventory(ramp, ShapeKind.Cube, 8);
         AddInventory(ramp, ShapeKind.Ramp, 4);
         ramp.Target.Add(T(ShapeKind.Cube, -2, 0, 0, 0));
@@ -736,7 +1100,20 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         ramp.Target.Add(T(ShapeKind.Ramp, 0, 0, 0, 1));
         levels.Add(ramp);
 
-        LevelData slide = Level(10, "工程任务岛", TaskKind.Functional, "小球滑道", "用斜坡和薄板搭一条滑道。", "先让斜坡朝向终点，再接一块平平的薄板。", 3);
+        LevelData bridge = Level(10, "Engineering Bay", TaskKind.Functional, "Bridge to the Lighthouse", "Build a bridge so the robot can reach the lighthouse.", "The bridge is almost connected. Check the right side height.", 3);
+        AddInventory(bridge, ShapeKind.RectangularPrism, 5);
+        AddInventory(bridge, ShapeKind.Cube, 8);
+        AddInventory(bridge, ShapeKind.Plate, 6);
+        bridge.Target.Add(T(ShapeKind.Cube, -3, 0, -1, 0));
+        bridge.Target.Add(T(ShapeKind.Cube, 3, 0, -1, 0));
+        bridge.Target.Add(T(ShapeKind.RectangularPrism, -2, 1, 0, 1));
+        bridge.Target.Add(T(ShapeKind.RectangularPrism, 0, 1, 0, 1));
+        bridge.Target.Add(T(ShapeKind.RectangularPrism, 2, 1, 0, 1));
+        bridge.Target.Add(T(ShapeKind.Plate, -4, 1, 0, 1));
+        bridge.Target.Add(T(ShapeKind.Plate, 4, 1, 0, 1));
+        levels.Add(bridge);
+
+        LevelData slide = Level(11, "Engineering Bay", TaskKind.Functional, "Ball Slide", "Build a slide path so a ball can roll to the goal.", "The ball rolls where the ramp points. Check the ramp direction.", 4);
         AddInventory(slide, ShapeKind.Ramp, 4);
         AddInventory(slide, ShapeKind.Plate, 4);
         AddInventory(slide, ShapeKind.Cube, 5);
@@ -746,7 +1123,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         slide.Target.Add(T(ShapeKind.Plate, 1, 0, 0, 1));
         levels.Add(slide);
 
-        LevelData windmill = Level(11, "旋转工坊", TaskKind.Blueprint, "小风车", "用圆柱和长方体搭风车中心与叶片。", "四片叶子围着圆心转一圈。", 4);
+        LevelData windmill = Level(12, "Rotation Workshop", TaskKind.Blueprint, "Windmill Center and Blades", "Use a cylinder and long blocks to build windmill blades.", "Each blade should point away from the center cylinder.", 4);
         AddInventory(windmill, ShapeKind.Cylinder, 3);
         AddInventory(windmill, ShapeKind.RectangularPrism, 6);
         AddInventory(windmill, ShapeKind.Cube, 4);
@@ -758,7 +1135,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         windmill.Target.Add(T(ShapeKind.RectangularPrism, -1, 2, 0, 1));
         levels.Add(windmill);
 
-        LevelData repairWind = Level(12, "维修工坊", TaskKind.Repair, "修风车叶片", "有一片叶子方向错了，把它转回来。", "只看圆心周围，找那片朝向不一样的叶子。", 4);
+        LevelData repairWind = Level(13, "Rotation Workshop", TaskKind.Repair, "Repair the Windmill", "One blade is turned the wrong way. Fix it.", "One blade does not point away from the center.", 4);
         AddInventory(repairWind, ShapeKind.RectangularPrism, 2);
         repairWind.Target.AddRange(windmill.Target);
         repairWind.StartingShapes.Add(T(ShapeKind.Cube, 0, 0, 0, 0));
@@ -769,7 +1146,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         repairWind.StartingShapes.Add(T(ShapeKind.RectangularPrism, -1, 2, 0, 1));
         levels.Add(repairWind);
 
-        LevelData threeViews = Level(13, "图纸塔", TaskKind.Blueprint, "三视图小塔", "根据图纸搭一个左右对称的小塔。", "从正面看两边一样高，从侧面看中间最高。", 4);
+        LevelData threeViews = Level(14, "Blueprint Tower", TaskKind.Blueprint, "Tower from Three Views", "Use the top, front, and side views to build a tower.", "The front view looks good. Now check the top view for depth.", 4);
         AddInventory(threeViews, ShapeKind.Cube, 10);
         AddInventory(threeViews, ShapeKind.Plate, 3);
         AddInventory(threeViews, ShapeKind.Cylinder, 2);
@@ -780,7 +1157,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         threeViews.Target.Add(T(ShapeKind.Cylinder, 0, 2, 0, 0));
         levels.Add(threeViews);
 
-        LevelData memoryBridge = Level(14, "记忆海湾", TaskKind.Memory, "记忆小桥", "先观察图纸，再凭记忆搭出小桥。", "先记住桥面有几段，再记住两边支撑。", 4);
+        LevelData memoryBridge = Level(15, "Blueprint Tower", TaskKind.Memory, "Memory Bridge", "Look at the bridge blueprint, then build it from memory.", "Try remembering the base first, then the ramps.", 4);
         AddInventory(memoryBridge, ShapeKind.Cube, 6);
         AddInventory(memoryBridge, ShapeKind.RectangularPrism, 4);
         memoryBridge.Target.Add(T(ShapeKind.Cube, -2, 0, 0, 0));
@@ -789,7 +1166,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         memoryBridge.Target.Add(T(ShapeKind.RectangularPrism, 1, 1, 0, 1));
         levels.Add(memoryBridge);
 
-        LevelData rotatedHouse = Level(15, "旋转工坊", TaskKind.Blueprint, "旋转小屋", "搭出旋转后的房子底座。", "长边现在朝前后方向。", 4);
+        LevelData rotatedHouse = Level(16, "Rotation Workshop", TaskKind.Blueprint, "Rotated House", "Build the house base after turning it 90 degrees.", "Imagine turning the whole house, not just the roof.", 4);
         AddInventory(rotatedHouse, ShapeKind.Cube, 8);
         AddInventory(rotatedHouse, ShapeKind.Plate, 5);
         AddInventory(rotatedHouse, ShapeKind.TriangularPrism, 3);
@@ -800,7 +1177,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         rotatedHouse.Target.Add(T(ShapeKind.TriangularPrism, 0, 2, 0, 0));
         levels.Add(rotatedHouse);
 
-        LevelData heightRepair = Level(16, "维修工坊", TaskKind.Repair, "修高度错误", "有一块放低了，把它放到正确高度。", "从侧面看，三块应该在同一层。", 4);
+        LevelData heightRepair = Level(17, "Blueprint Tower", TaskKind.Repair, "Height Repair", "One cube is too low. Move it to the right layer.", "From the side, this block is one layer too low.", 4);
         AddInventory(heightRepair, ShapeKind.Cube, 2);
         heightRepair.Target.Add(T(ShapeKind.Cube, -1, 1, 0, 0));
         heightRepair.Target.Add(T(ShapeKind.Cube, 0, 1, 0, 0));
@@ -810,7 +1187,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         heightRepair.StartingShapes.Add(T(ShapeKind.Cube, 1, 1, 0, 0));
         levels.Add(heightRepair);
 
-        LevelData road = Level(17, "工程任务岛", TaskKind.Functional, "连续道路", "用有限的形状搭出可通行道路。", "每一块都要接住下一块，不能断开。", 5);
+        LevelData road = Level(18, "Engineering Bay", TaskKind.Functional, "Limited Road Builder", "Use a few shapes to make one connected road.", "You have limited shapes. Try using the long block to cover the gap.", 5);
         AddInventory(road, ShapeKind.Plate, 6);
         AddInventory(road, ShapeKind.Ramp, 3);
         AddInventory(road, ShapeKind.Cube, 4);
@@ -821,7 +1198,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         road.Target.Add(T(ShapeKind.Plate, 3, 1, 0, 1));
         levels.Add(road);
 
-        LevelData robotView = Level(18, "视角花园", TaskKind.Viewpoint, "机器人左边", "从机器人的视角补上一块绿色方块。", "小机器人面对灯塔时，它的左边在画面的前方。", 5);
+        LevelData robotView = Level(19, "Master Shape City", TaskKind.Viewpoint, "Robot's View", "The robot says: The green cube is missing on my left.", "Stand where the robot stands. Which side is its left?", 5);
         AddInventory(robotView, ShapeKind.Cube, 5);
         robotView.Target.Add(T(ShapeKind.Cube, 0, 0, 0, 0));
         robotView.Target.Add(T(ShapeKind.Cube, 0, 0, -1, 0));
@@ -830,19 +1207,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         robotView.StartingShapes.Add(T(ShapeKind.Cube, 0, 0, -1, 0));
         levels.Add(robotView);
 
-        LevelData memoryTower = Level(19, "记忆海湾", TaskKind.Memory, "记忆小塔", "观察小塔图纸，再凭记忆复原。", "记住底座、中心和最上面的形状。", 5);
-        AddInventory(memoryTower, ShapeKind.Cube, 8);
-        AddInventory(memoryTower, ShapeKind.Plate, 4);
-        AddInventory(memoryTower, ShapeKind.Cylinder, 3);
-        AddInventory(memoryTower, ShapeKind.Ramp, 2);
-        memoryTower.Target.Add(T(ShapeKind.Cube, -1, 0, 0, 0));
-        memoryTower.Target.Add(T(ShapeKind.Cube, 1, 0, 0, 0));
-        memoryTower.Target.Add(T(ShapeKind.Plate, 0, 1, 0, 1));
-        memoryTower.Target.Add(T(ShapeKind.Cylinder, 0, 2, 0, 0));
-        memoryTower.Target.Add(T(ShapeKind.Ramp, 0, 3, 0, 1));
-        levels.Add(memoryTower);
-
-        LevelData final = Level(20, "形状大师城", TaskKind.Challenge, "工程小岛", "连接桥、塔、坡道和道路，完成综合工程。", "先搭连续路线，再补上高处的灯塔。", 6);
+        LevelData final = Level(20, "Master Shape City", TaskKind.Challenge, "Shape Island Final Build", "Connect the bridge, road, ramp, tower, and lighthouse.", "The bridge works. Now check the ramp near the tower.", 5);
         AddInventory(final, ShapeKind.Cube, 16);
         AddInventory(final, ShapeKind.RectangularPrism, 8);
         AddInventory(final, ShapeKind.Plate, 8);
@@ -857,7 +1222,6 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         final.Target.Add(T(ShapeKind.Cylinder, 4, 3, 0, 0));
         levels.Add(final);
     }
-
     private LevelData Level(int number, string world, TaskKind task, string title, string goal, string hint, int difficulty)
     {
         LevelData level = new LevelData();
@@ -1217,35 +1581,35 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     private void CreateTopUi(Transform parent)
     {
         RectTransform leftHome = CreatePanel("Top Left Buttons", parent, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -120f), new Vector2(260f, -20f), Color.clear, 0f);
-        CreateButton(leftHome, "返回", new Vector2(0f, 0.5f), new Vector2(92f, 92f), delegate { PreviousLevel(); }, new Color(1f, 1f, 1f, 0.92f), new Color(0.22f, 0.48f, 0.82f));
-        CreateButton(leftHome, "主页", new Vector2(116f, 0.5f), new Vector2(92f, 92f), delegate { LoadLevel(0); }, new Color(1f, 1f, 1f, 0.92f), new Color(0.22f, 0.48f, 0.82f));
+        CreateButton(leftHome, "Back", new Vector2(0f, 0.5f), new Vector2(92f, 92f), delegate { PreviousLevel(); }, new Color(1f, 1f, 1f, 0.92f), new Color(0.22f, 0.48f, 0.82f));
+        CreateButton(leftHome, "Home", new Vector2(116f, 0.5f), new Vector2(92f, 92f), delegate { currentScreen = GameScreen.Start; }, new Color(1f, 1f, 1f, 0.92f), new Color(0.22f, 0.48f, 0.82f));
 
         RectTransform centerPanel = CreatePanel("Action Bar", parent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-350f, -118f), new Vector2(350f, -20f), new Color(1f, 1f, 1f, 0.92f), 0.92f);
-        undoButton = CreateButton(centerPanel, "撤销", new Vector2(-245f, 0f), new Vector2(130f, 78f), delegate { Undo(); }, new Color(1f, 0.98f, 0.92f, 1f), new Color(0.93f, 0.48f, 0.06f));
-        redoButton = CreateButton(centerPanel, "重做", new Vector2(-85f, 0f), new Vector2(130f, 78f), delegate { Redo(); }, new Color(1f, 0.98f, 0.92f, 1f), new Color(0.45f, 0.55f, 0.65f));
-        CreateButton(centerPanel, "旋转", new Vector2(75f, 0f), new Vector2(130f, 78f), delegate { RotateSelected(); }, new Color(0.94f, 0.98f, 1f, 1f), new Color(0.08f, 0.55f, 0.92f));
-        CreateButton(centerPanel, "测试", new Vector2(245f, 0f), new Vector2(150f, 82f), delegate { RunTest(); }, new Color(0.84f, 1f, 0.55f, 1f), new Color(0.22f, 0.63f, 0.06f));
+        undoButton = CreateButton(centerPanel, "Undo", new Vector2(-245f, 0f), new Vector2(130f, 78f), delegate { Undo(); }, new Color(1f, 0.98f, 0.92f, 1f), new Color(0.93f, 0.48f, 0.06f));
+        redoButton = CreateButton(centerPanel, "Redo", new Vector2(-85f, 0f), new Vector2(130f, 78f), delegate { Redo(); }, new Color(1f, 0.98f, 0.92f, 1f), new Color(0.45f, 0.55f, 0.65f));
+        CreateButton(centerPanel, "Rotate", new Vector2(75f, 0f), new Vector2(130f, 78f), delegate { RotateSelected(); }, new Color(0.94f, 0.98f, 1f, 1f), new Color(0.08f, 0.55f, 0.92f));
+        CreateButton(centerPanel, "Run Test", new Vector2(245f, 0f), new Vector2(150f, 82f), delegate { RunTest(); }, new Color(0.84f, 1f, 0.55f, 1f), new Color(0.22f, 0.63f, 0.06f));
 
         RectTransform rightTop = CreatePanel("Top Right Buttons", parent, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-206f, -120f), new Vector2(-24f, -20f), Color.clear, 0f);
-        nextButton = CreateButton(rightTop, "下一关", new Vector2(0f, 0.5f), new Vector2(170f, 92f), delegate { NextLevel(); }, new Color(1f, 1f, 1f, 0.94f), new Color(0.2f, 0.46f, 0.82f));
+        nextButton = CreateButton(rightTop, "Next Level", new Vector2(0f, 0.5f), new Vector2(170f, 92f), delegate { NextLevel(); }, new Color(1f, 1f, 1f, 0.94f), new Color(0.2f, 0.46f, 0.82f));
     }
 
     private void CreateLeftMissionPanel(Transform parent)
     {
         RectTransform panel = CreatePanel("Mission Card", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(24f, 186f), new Vector2(350f, -150f), new Color(1f, 0.97f, 0.9f, 0.94f), 0.94f);
 
-        worldText = CreateText(panel, "形状岛", 22, FontStyle.Bold, new Color(0.23f, 0.46f, 0.85f), new Vector2(26f, -34f), new Vector2(270f, 32f), TextAnchor.MiddleLeft);
-        titleText = CreateText(panel, "任务", 34, FontStyle.Bold, new Color(0.13f, 0.16f, 0.22f), new Vector2(26f, -78f), new Vector2(270f, 46f), TextAnchor.MiddleLeft);
-        taskText = CreateText(panel, "小小形状工程师", 22, FontStyle.Bold, new Color(0.33f, 0.42f, 0.55f), new Vector2(26f, -128f), new Vector2(270f, 42f), TextAnchor.MiddleLeft);
-        goalText = CreateText(panel, "搭建目标", 24, FontStyle.Normal, new Color(0.12f, 0.13f, 0.16f), new Vector2(26f, -218f), new Vector2(276f, 116f), TextAnchor.UpperLeft);
+        worldText = CreateText(panel, "Shape Island", 22, FontStyle.Bold, new Color(0.23f, 0.46f, 0.85f), new Vector2(26f, -34f), new Vector2(270f, 32f), TextAnchor.MiddleLeft);
+        titleText = CreateText(panel, "Task", 34, FontStyle.Bold, new Color(0.13f, 0.16f, 0.22f), new Vector2(26f, -78f), new Vector2(270f, 46f), TextAnchor.MiddleLeft);
+        taskText = CreateText(panel, "Little Shape Engineer", 22, FontStyle.Bold, new Color(0.33f, 0.42f, 0.55f), new Vector2(26f, -128f), new Vector2(270f, 42f), TextAnchor.MiddleLeft);
+        goalText = CreateText(panel, "Build Goal", 24, FontStyle.Normal, new Color(0.12f, 0.13f, 0.16f), new Vector2(26f, -218f), new Vector2(276f, 116f), TextAnchor.UpperLeft);
 
         RectTransform robotPanel = CreatePanel("Robot Tip", panel, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(20f, 104f), new Vector2(-20f, 276f), new Color(0.85f, 0.95f, 1f, 0.88f), 0.88f);
         CreateRobotPortrait(robotPanel);
-        robotHintText = CreateText(robotPanel, "先观察图纸。", 22, FontStyle.Bold, new Color(0.12f, 0.18f, 0.26f), new Vector2(124f, -32f), new Vector2(168f, 110f), TextAnchor.MiddleLeft);
+        robotHintText = CreateText(robotPanel, "Look at the blueprint first.", 22, FontStyle.Bold, new Color(0.12f, 0.18f, 0.26f), new Vector2(124f, -32f), new Vector2(168f, 110f), TextAnchor.MiddleLeft);
 
         RectTransform progressPanel = CreatePanel("Progress", panel, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(20f, 20f), new Vector2(-20f, 88f), new Color(1f, 1f, 1f, 0.82f), 0.82f);
-        progressText = CreateText(progressPanel, "进度", 22, FontStyle.Bold, new Color(0.2f, 0.48f, 0.86f), new Vector2(18f, -10f), new Vector2(90f, 30f), TextAnchor.MiddleLeft);
-        starText = CreateText(progressPanel, "☆ ☆ ☆", 34, FontStyle.Bold, new Color(1f, 0.68f, 0.12f), new Vector2(116f, -14f), new Vector2(160f, 40f), TextAnchor.MiddleLeft);
+        progressText = CreateText(progressPanel, "Progress", 22, FontStyle.Bold, new Color(0.2f, 0.48f, 0.86f), new Vector2(18f, -10f), new Vector2(90f, 30f), TextAnchor.MiddleLeft);
+        starText = CreateText(progressPanel, "* - -", 34, FontStyle.Bold, new Color(1f, 0.68f, 0.12f), new Vector2(116f, -14f), new Vector2(160f, 40f), TextAnchor.MiddleLeft);
     }
 
     private void CreateRobotPortrait(RectTransform parent)
@@ -1262,12 +1626,12 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     {
         RectTransform panel = CreatePanel("Blueprint Panel", parent, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-390f, 170f), new Vector2(-26f, -150f), new Color(0.95f, 0.99f, 1f, 0.94f), 0.94f);
         RectTransform header = CreatePanel("Blueprint Header", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -70f), new Vector2(0f, 0f), new Color(0.1f, 0.47f, 0.9f, 1f), 1f);
-        blueprintTitleText = CreateText(header, "图纸", 32, FontStyle.Bold, Color.white, new Vector2(0f, -8f), new Vector2(0f, 52f), TextAnchor.MiddleCenter);
-        blueprintTypeText = CreateText(panel, "3D 目标 + 三视图", 22, FontStyle.Bold, new Color(0.15f, 0.22f, 0.3f), new Vector2(28f, -100f), new Vector2(280f, 36f), TextAnchor.MiddleLeft);
+        blueprintTitleText = CreateText(header, "Blueprint", 32, FontStyle.Bold, Color.white, new Vector2(0f, -8f), new Vector2(0f, 52f), TextAnchor.MiddleCenter);
+        blueprintTypeText = CreateText(panel, "3D Target + Three Views", 22, FontStyle.Bold, new Color(0.15f, 0.22f, 0.3f), new Vector2(28f, -100f), new Vector2(280f, 36f), TextAnchor.MiddleLeft);
 
-        topProjectionGrid = CreateProjection(panel, "俯视图", new Vector2(28f, -270f));
-        frontProjectionGrid = CreateProjection(panel, "正面图", new Vector2(28f, -458f));
-        sideProjectionGrid = CreateProjection(panel, "侧面图", new Vector2(28f, -646f));
+        topProjectionGrid = CreateProjection(panel, "Top View", new Vector2(28f, -270f));
+        frontProjectionGrid = CreateProjection(panel, "Front View", new Vector2(28f, -458f));
+        sideProjectionGrid = CreateProjection(panel, "Side View", new Vector2(28f, -646f));
     }
 
     private RectTransform CreateProjection(RectTransform parent, string label, Vector2 anchoredPosition)
@@ -1319,7 +1683,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         }
 
         RectTransform banner = CreatePanel("Feedback Banner", parent, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-520f, 174f), new Vector2(520f, 226f), new Color(0.1f, 0.47f, 0.9f, 0.86f), 0.86f);
-        feedbackText = CreateStretchText(banner, "把形状拖到发光网格里，完成你的工程小岛。", 28, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        feedbackText = CreateStretchText(banner, "Drag shapes to the glowing grid to fix Shape Island.", 28, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
     }
 
     private void LoadLevel(int index)
@@ -1370,9 +1734,9 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         }
 
         selectedKind = FirstAvailableKind();
-        SetFeedbackText("选择底部形状，拖到 3D 网格里。");
+        SetFeedbackText("Choose a shape from the shelf and drag it to the 3D grid.");
         SetRobotHintText(level.Hint);
-        SetStarText("★ ☆ ☆");
+        SetStarText("* - -");
         RefreshGhosts();
         RefreshProjectionViews();
         RefreshUi();
@@ -1404,10 +1768,10 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private IEnumerator HideBlueprintAfterSeconds(float seconds)
     {
-        SetRobotHintText("先认真看图纸。");
+        SetRobotHintText("Look carefully at the blueprint.");
         yield return new WaitForSeconds(seconds);
         blueprintVisible = false;
-        SetRobotHintText("现在凭记忆搭出来。");
+        SetRobotHintText("Now build it from memory.");
         RefreshGhosts();
         RefreshProjectionViews();
     }
@@ -1425,10 +1789,10 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         taskText.text = LevelTaskLabel(level);
         goalText.text = level.Goal;
         SetRobotHintText(level.Hint);
-        progressText.text = "第 " + level.Number + " / " + levels.Count + " 关";
-        blueprintTitleText.text = "图纸";
+        progressText.text = "Level " + level.Number + " / " + levels.Count;
+        blueprintTitleText.text = "Blueprint";
         blueprintTypeText.text = BlueprintLabel(level);
-        SetStarText(GetSolvedCount() == level.Target.Count ? "★ ★ ★" : "★ ☆ ☆");
+        SetStarText(GetSolvedCount() == level.Target.Count ? "* * *" : "* - -");
 
         foreach (KeyValuePair<ShapeKind, Text> pair in paletteCounts)
         {
@@ -1483,17 +1847,17 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         switch (level.Task)
         {
             case TaskKind.Functional:
-                return "工程任务";
+                return "Functional Build";
             case TaskKind.Repair:
-                return "修复任务";
+                return "Repair Task";
             case TaskKind.Memory:
-                return "记忆任务";
+                return "Memory Build";
             case TaskKind.Viewpoint:
-                return "视角任务";
+                return "Robot View";
             case TaskKind.Challenge:
-                return "综合挑战";
+                return "Final Challenge";
             default:
-                return "图纸复刻";
+                return "Blueprint Build";
         }
     }
 
@@ -1501,27 +1865,27 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     {
         if (level.Task == TaskKind.Memory && !blueprintVisible)
         {
-            return "图纸已隐藏";
+            return "Blueprint Hidden";
         }
 
         if (level.Task == TaskKind.Viewpoint)
         {
-            return "机器人视角 + 三视图";
+            return "Robot View + Three Views";
         }
 
         if (level.Task == TaskKind.Functional)
         {
-            return "功能目标 + 路径";
+            return "Function Goal + Path";
         }
 
-        return "3D 目标 + 三视图";
+        return "3D Target + Three Views";
     }
 
     private void BeginPaletteDrag(ShapeKind kind)
     {
         if (GetRemaining(kind) <= 0)
         {
-            SetRobotHintText("这种形状已经用完了。");
+            SetRobotHintText("This shape is all used up.");
             return;
         }
 
@@ -1887,9 +2251,9 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
         if (diagnostic.Passed)
         {
-            SetFeedbackText("成功！小岛又被修好了一点。");
-            SetRobotHintText("太棒了！这些基础形状组合成了真正有用的结构。");
-            SetStarText("★ ★ ★");
+            SetFeedbackText("Great build! You fixed part of Shape Island.");
+            SetRobotHintText("Great work! Simple shapes became a useful structure.");
+            SetStarText("* * *");
             FlashLighthouse();
 
             if (CurrentLevel.Task == TaskKind.Functional || CurrentLevel.Number == 1)
@@ -1901,13 +2265,16 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
                 robotWalkRoutine = StartCoroutine(WalkRobotAcross());
             }
+
+            completedLevels.Add(levelIndex);
+            currentScreen = GameScreen.Complete;
         }
         else
         {
             hintCount++;
             SetFeedbackText(diagnostic.Message);
             SetRobotHintText(diagnostic.Hint);
-            SetStarText("★ ☆ ☆");
+            SetStarText("* - -");
             RefreshGhosts();
         }
 
@@ -1951,7 +2318,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
             if (!found)
             {
                 diagnostic.Passed = false;
-                diagnostic.Message = "还差一块" + shapes[target.Kind].Name + "。";
+                diagnostic.Message = "One " + shapes[target.Kind].Name + " is still missing.";
                 diagnostic.Hint = HintForMissing(target);
                 return diagnostic;
             }
@@ -1960,14 +2327,14 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         if (placedShapes.Count > matched)
         {
             diagnostic.Passed = false;
-            diagnostic.Message = "有一块多出来了。";
-            diagnostic.Hint = "把多余的形状拿走，再测试一次。";
+            diagnostic.Message = "There is one extra shape.";
+            diagnostic.Hint = "Take away the extra shape, then run the test again.";
             return diagnostic;
         }
 
         diagnostic.Passed = true;
-        diagnostic.Message = "完成";
-        diagnostic.Hint = "完成";
+        diagnostic.Message = "Complete";
+        diagnostic.Hint = "Complete";
         return diagnostic;
     }
 
@@ -1996,20 +2363,20 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     {
         if (target.Cell.y > 0)
         {
-            return "这块要放在第 " + (target.Cell.y + 1) + " 层。";
+            return "This shape should be on layer " + (target.Cell.y + 1) + ".";
         }
 
         if (target.Kind == ShapeKind.RectangularPrism || target.Kind == ShapeKind.Plate)
         {
-            return "长边方向要和图纸一样。";
+            return "Turn the long side to match the blueprint.";
         }
 
         if (target.Kind == ShapeKind.Ramp)
         {
-            return "斜坡的方向很重要。";
+            return "Check the ramp direction.";
         }
 
-        return "看发光轮廓，把形状放到同一个格子。";
+        return "Look at the glowing outline and place the shape in the same cell.";
     }
 
     private int GetSolvedCount()
@@ -2243,6 +2610,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         }
 
         LoadLevel(next);
+        currentScreen = GameScreen.Briefing;
     }
 
     private void PreviousLevel()
@@ -2254,6 +2622,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         }
 
         LoadLevel(previous);
+        currentScreen = GameScreen.Briefing;
     }
 
     private GameObject CreateShapeObject(ShapeDefinition definition, Vector3Int cell, int rotation, Transform parent, Material overrideMaterial, bool interactive)

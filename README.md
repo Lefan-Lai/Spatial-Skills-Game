@@ -1,44 +1,60 @@
-# 小小形状工程师 / Little Shape Engineer
+# Little Shape Engineer
 
-Desktop Unity prototype for a child-friendly 3D shape-building game. Children use six basic shapes to repair a colorful floating island: cube, rectangular prism, plate, ramp, triangular prism, and cylinder.
+**Build, Rotate, Test, and Fix!**
 
-## Open the project
+Little Shape Engineer is a child-friendly desktop Unity game for spatial learning. Children use six basic shapes to repair a colorful floating island:
+
+- Cube
+- Rectangular Prism
+- Plate
+- Ramp
+- Triangular Prism
+- Cylinder
+
+Every build in the game is made from these simple shapes.
+
+## Open the Project
 
 1. Open this folder in Unity Hub.
 2. Use Unity 2022.3 LTS or newer.
 3. Open `Assets/Scenes/Main.unity`.
 4. Press Play.
 
-## What changed
+## Current MVP Flow
 
-- The game now opens as `小小形状工程师`, with a fresh child-friendly island interface.
-- The first screen is a bright island bridge task with ocean, islands, a lighthouse, a small robot, and a large 3D build board.
-- The UI is simplified for children: left task card, right blueprint card, bottom shape palette, and only a few large top buttons.
-- Text is short and visual feedback is emphasized through ghost outlines, color, stars, and robot hints.
+- Start Screen
+- Choose Your Engineer
+- Shape Library
+- World Map
+- Level Select
+- Level Briefing
+- Main Build Screen
+- Run Test
+- Level Complete
 
-## Gameplay
+## Child-Friendly Controls
 
-- Drag a shape from the bottom palette onto the 3D grid.
-- Drag placed shapes directly to move them.
-- Use the rotate button or `R` to rotate the selected shape.
-- Use the test button or `Enter` to check the build.
-- Right-drag the mouse to orbit the 3D camera.
+- Drag a shape from the bottom shelf to the 3D grid.
+- Drag a placed shape to move it.
+- Click `Rotate` or press `R` to turn the selected shape.
+- Click `Run Test` or press `Enter` to check the build.
+- Right-drag to rotate the camera.
 - Use the mouse wheel to zoom.
 - Right-click a placed shape to remove it.
 
-## MVP Content
+## MVP Levels
 
-The prototype includes a 20-level mission set based on the new design:
+The game includes 20 English MVP levels based on the design specification:
 
-- Blueprint build tasks
-- Functional build tasks
-- Repair tasks
-- Memory build tasks
-- Viewpoint tasks
-- One integrated final challenge
+- Blueprint Build
+- Functional Build
+- Repair Task
+- Memory Build
+- Robot View
+- Final Challenge
 
-The project keeps the older scripts in `Assets/Scripts` for reference, but `GameBootstrap` now starts `LittleShapeEngineerGame`.
+The older prototype scripts are still kept in `Assets/Scripts` for reference. `GameBootstrap` starts `LittleShapeEngineerGame`.
 
-## Build target
+## Build Target
 
 Use `File > Build Settings`, choose `PC, Mac & Linux Standalone`, then build for your desktop platform.
