@@ -1,8 +1,8 @@
-# Little Shape Engineer
+# Little Shape Engineer: Shapeonaut Rescue
 
 **Build, Rotate, Test, and Fix!**
 
-Little Shape Engineer is a child-friendly desktop Unity game for spatial learning. Children use six basic shapes to repair a colorful floating island:
+Little Shape Engineer: Shapeonaut Rescue is a child-friendly desktop Unity game for spatial learning. The current default build is the V2 prototype from `Assets/Game/Scripts`: Nova explores a soft diorama planet, enters glowing Build Zones, and repairs structures with six basic shapes:
 
 - Cube
 - Rectangular Prism
@@ -20,20 +20,30 @@ Every build in the game is made from these simple shapes.
 3. Open `Assets/Scenes/Main.unity`.
 4. Press Play.
 
-## Current MVP Flow
+## Current V2 MVP Flow
 
 - Start Screen
+- Planet Exploration
+- Build Zone Interaction
+- Level Briefing
+- Build Mode
+- Run Test
+- Repair Feedback
+- Level Complete
+- Data Export
+
+The V2 experience includes T0 tutorial plus L1-L9 official repair levels.
+
+## Older Prototype Screens
+
+The older immediate-mode prototype scripts are still kept in `Assets/Scripts` for reference, but `GameBootstrap` now starts `ShapeonautRescueGame` from `Assets/Game/Scripts/Core`.
+
+Older screens included:
+
 - Choose Your Engineer
 - Shape Library
 - World Map
 - Level Select
-- Level Briefing
-- Main Build Screen
-- Run Test
-- Feedback and Repair
-- Reflection Question
-- Teach Nova
-- Level Complete
 - Progress
 - Pause / Help / Settings
 
@@ -50,9 +60,40 @@ Every build in the game is made from these simple shapes.
 - Use the mouse wheel to zoom.
 - Right-click a placed shape to remove it.
 
-## UI Redesign
+## V2 Controls
 
-The interface now follows the Little Shape Engineer mockups:
+Exploration:
+
+- Move Nova with `WASD` or arrow keys.
+- Right-drag to rotate the camera.
+- Use the mouse wheel to zoom.
+- Press `E` near a glowing Build Zone.
+
+Build Mode:
+
+- Click a shape in the bottom shelf.
+- Click the 3D grid to place it.
+- Click a placed block to select it.
+- Press `Q` / `E` to rotate.
+- Press `R` / `F` to change height.
+- Press `Delete` to remove.
+- Press `Ctrl+Z` / `Ctrl+Y` for undo and redo.
+- Press `1`, `2`, `3`, or `C` for camera views.
+- Press `Space` or click `Run Test`.
+
+## V2 Architecture
+
+New game-owned code lives under `Assets/Game/Scripts`:
+
+- `Core`: game coordinator, data definitions, level library, logger
+- `World`: diorama planet, Nova/Pip, camera, primitive block rendering
+- `BuildSystem`: grid placement, inventory, undo/redo
+- `Testing`: blueprint and functional checks
+- `UI`: child-friendly IMGUI screens
+
+## UI Direction
+
+The interface follows the Little Shape Engineer mockups:
 
 - Blue-and-white card layout
 - Nova helper robot
@@ -60,18 +101,22 @@ The interface now follows the Little Shape Engineer mockups:
 - Goal, progress, tip, and build-plan panels
 - Feedback, reflection, teaching, and completion screens
 
-## MVP Levels
+## V2 Levels
 
-The game includes 20 English MVP levels based on the design specification:
+The game includes 10 playable V2 nodes:
 
-- Blueprint Build
-- Functional Build
-- Repair Task
-- Memory Build
-- Robot View
-- Final Challenge
+- T0 Training Pad
+- L1 Step Bridge
+- L2 Pip Workbench
+- L3 Broken Bridge
+- L4 Ramp to the High Pad
+- L5 Signal Window
+- L6 Windmill Core
+- L7 Three-View Tower
+- L8 Pip's Left
+- L9 Final Planet Repair
 
-The older prototype scripts are still kept in `Assets/Scripts` for reference. `GameBootstrap` starts `LittleShapeEngineerGame`.
+Each level has a clear target operation, expected child errors, pass/fail testing, and child-friendly Pip feedback.
 
 ## Build Target
 
