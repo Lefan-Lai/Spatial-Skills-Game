@@ -314,7 +314,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
         if (uiFont == null)
         {
-            uiFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            uiFont = LoadRuntimeFont();
         }
 
         panelStyle = MakeGuiStyle(new Color(0.99f, 0.96f, 0.89f, 0.94f), TextAnchor.UpperLeft, 21, FontStyle.Normal, new Color(0.13f, 0.16f, 0.2f));
@@ -361,6 +361,11 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         texture.Apply();
         immediateTextures[key] = texture;
         return texture;
+    }
+
+    private Font LoadRuntimeFont()
+    {
+        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
     }
 
     private void DrawStartScreen()
@@ -1635,7 +1640,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private void BuildUi()
     {
-        uiFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        uiFont = LoadRuntimeFont();
 
         GameObject eventSystemObject = GameObject.Find("EventSystem");
         if (eventSystemObject == null)
