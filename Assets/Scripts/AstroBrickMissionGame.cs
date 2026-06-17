@@ -15,6 +15,8 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
     private const int MaxLayerUnits = 10;
     private const float StudSize = 0.52f;
     private const float PlateHeight = 0.16f;
+    private const float MinCameraDistance = 3.4f;
+    private const float MaxCameraDistance = 8.4f;
     private const string OpenAiResponsesUrl = "https://api.openai.com/v1/responses";
     private const string DefaultModel = "gpt-5.4-mini";
 
@@ -225,8 +227,15 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
     private int mcqCorrect;
     private int mcqTotal;
     private float missionStartTime;
+    private float cameraYaw = 38f;
+    private float cameraPitch = 34f;
+    private float cameraDistance = 5.8f;
+    private Vector3 cameraTarget = new Vector3(0.1f, 0.55f, 0.05f);
+    private Vector2 rightMouseStart;
     private bool targetGhostVisible = true;
     private bool isDragging;
+    private bool isOrbiting;
+    private bool rightMouseMoved;
     private bool gptRunning;
     private string draggingId;
     private Vector3Int dragStartAnchor;
@@ -251,6 +260,7 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
 
     private void Update()
     {
+        HandleCameraOrbit();
         UpdateHover();
         HandleMouse();
         HandleKeyboard();
@@ -470,7 +480,7 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
 
         mainCamera.clearFlags = CameraClearFlags.SolidColor;
         mainCamera.backgroundColor = new Color(0.025f, 0.035f, 0.09f, 1f);
-        mainCamera.fieldOfView = 43f;
+        mainCamera.fieldOfView = 38f;
 
         if (mainCamera.GetComponent<AudioListener>() == null)
         {
@@ -639,20 +649,20 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
 
         GameObject top = Panel(canvasObject.transform, "Top Bar", new Color(0.04f, 0.07f, 0.14f, 0.92f));
-        Rect(top.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 86f));
-        Horizontal(top, 16, 10, TextAnchor.MiddleLeft, true);
+        Rect(top.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 66f));
+        Horizontal(top, 18, 12, TextAnchor.MiddleLeft, true);
 
         GameObject left = Panel(canvasObject.transform, "Mission Panel", new Color(0.97f, 0.99f, 1f, 0.94f));
-        Rect(left.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(18f, -28f), new Vector2(370f, -178f));
-        Vertical(left, 14, 8, TextAnchor.UpperCenter);
+        Rect(left.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(14f, -28f), new Vector2(300f, -154f));
+        Vertical(left, 12, 7, TextAnchor.UpperCenter);
 
         GameObject right = Panel(canvasObject.transform, "Mission Control Panel", new Color(0.05f, 0.08f, 0.15f, 0.92f));
-        Rect(right.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(-18f, -28f), new Vector2(430f, -178f));
-        Vertical(right, 14, 8, TextAnchor.UpperCenter);
+        Rect(right.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(-14f, -28f), new Vector2(330f, -154f));
+        Vertical(right, 12, 7, TextAnchor.UpperCenter);
 
         GameObject bottom = Panel(canvasObject.transform, "Command Bar", new Color(0.97f, 0.99f, 1f, 0.94f));
-        Rect(bottom.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, 154f));
-        Vertical(bottom, 12, 6, TextAnchor.UpperCenter);
+        Rect(bottom.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, 108f));
+        Vertical(bottom, 10, 5, TextAnchor.UpperCenter);
 
         BuildTop(top.transform);
         BuildLeft(left.transform);
@@ -663,25 +673,26 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
     private void BuildTop(Transform parent)
     {
         GameObject titleGroup = LayoutGroup(parent, "Title Group", false, 0, 0, TextAnchor.MiddleLeft);
-        Layout(titleGroup, 410f, 64f, 0f, 0f);
+        Layout(titleGroup, 520f, 48f, 0f, 0f);
         titleText = TextUi(titleGroup.transform, "Title", "AstroBrick Mission", 28, TextAnchor.MiddleLeft, Color.white);
-        Layout(titleText.gameObject, 390f, 34f, 0f, 0f);
-        loadText = TextUi(titleGroup.transform, "Load", "", 13, TextAnchor.MiddleLeft, new Color(0.76f, 0.88f, 1f, 1f));
-        Layout(loadText.gameObject, 390f, 22f, 0f, 0f);
+        Layout(titleText.gameObject, 500f, 30f, 0f, 0f);
+        loadText = TextUi(titleGroup.transform, "Load", "", 12, TextAnchor.MiddleLeft, new Color(0.76f, 0.88f, 1f, 1f));
+        Layout(loadText.gameObject, 500f, 18f, 0f, 0f);
 
         GameObject conditionGroup = LayoutGroup(parent, "Condition Buttons", true, 8, 0, TextAnchor.MiddleCenter);
-        Layout(conditionGroup, 560f, 58f, 1f, 0f);
+        conditionGroup.SetActive(false);
+        Layout(conditionGroup, 0f, 1f, 0f, 0f);
         AddConditionButton(conditionGroup.transform, "Control", ConditionMode.Control);
         AddConditionButton(conditionGroup.transform, "Fixed Feedback", ConditionMode.FixedFeedback);
         AddConditionButton(conditionGroup.transform, "LLM + MCQ", ConditionMode.LlmMcq);
         AddConditionButton(conditionGroup.transform, "Full System", ConditionMode.FullSystem);
 
         GameObject stats = LayoutGroup(parent, "Stats", false, 4, 0, TextAnchor.MiddleRight);
-        Layout(stats, 430f, 64f, 0f, 0f);
+        Layout(stats, 360f, 48f, 0f, 0f);
         telemetryText = TextUi(stats.transform, "Telemetry Top", "", 13, TextAnchor.UpperRight, new Color(0.85f, 0.94f, 1f, 1f));
-        Layout(telemetryText.gameObject, 410f, 38f, 0f, 0f);
+        Layout(telemetryText.gameObject, 340f, 28f, 0f, 0f);
         GameObject loadTrack = Panel(stats.transform, "Load Track", new Color(0.36f, 0.44f, 0.55f, 0.7f));
-        Layout(loadTrack, 410f, 10f, 0f, 0f);
+        Layout(loadTrack, 340f, 8f, 0f, 0f);
         loadFill = Panel(loadTrack.transform, "Load Fill", new Color(0.22f, 0.82f, 0.5f, 1f)).GetComponent<Image>();
         Rect(loadFill.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
         loadFill.type = Image.Type.Filled;
@@ -696,29 +707,29 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
 
     private void BuildLeft(Transform parent)
     {
-        Text header = TextUi(parent, "Mission Header", "Mission Brief", 24, TextAnchor.MiddleLeft, new Color(0.08f, 0.14f, 0.24f, 1f));
-        Layout(header.gameObject, 0f, 30f, 1f, 0f);
+        Text header = TextUi(parent, "Mission Header", "Today Mission", 22, TextAnchor.MiddleLeft, new Color(0.08f, 0.14f, 0.24f, 1f));
+        Layout(header.gameObject, 0f, 26f, 1f, 0f);
         missionText = TextUi(parent, "Mission Text", "", 14, TextAnchor.UpperLeft, new Color(0.12f, 0.18f, 0.27f, 1f));
-        Layout(missionText.gameObject, 0f, 130f, 1f, 0f);
-        partListText = TextUi(parent, "Part List", "", 13, TextAnchor.UpperLeft, new Color(0.12f, 0.18f, 0.27f, 1f));
-        Layout(partListText.gameObject, 0f, 94f, 1f, 0f);
-        topProjection = Projection(parent, "Top View", GridDepth, GridWidth);
-        frontProjection = Projection(parent, "Front View", MaxLayerUnits, GridWidth);
-        sideProjection = Projection(parent, "Side View", MaxLayerUnits, GridDepth);
+        Layout(missionText.gameObject, 0f, 116f, 1f, 0f);
+        partListText = TextUi(parent, "Part List", "", 12, TextAnchor.UpperLeft, new Color(0.12f, 0.18f, 0.27f, 1f));
+        Layout(partListText.gameObject, 0f, 54f, 1f, 0f);
+        topProjection = Projection(parent, "Map", GridDepth, GridWidth);
+        frontProjection = Projection(parent, "Front", MaxLayerUnits, GridWidth);
+        sideProjection = Projection(parent, "Side", MaxLayerUnits, GridDepth);
         targetInfoText = TextUi(parent, "Target Info", "", 12, TextAnchor.UpperLeft, new Color(0.22f, 0.3f, 0.4f, 1f));
-        Layout(targetInfoText.gameObject, 0f, 70f, 1f, 0f);
+        Layout(targetInfoText.gameObject, 0f, 48f, 1f, 0f);
     }
 
     private void BuildRight(Transform parent)
     {
-        Text header = TextUi(parent, "Control Header", "Mission Control + Novi", 23, TextAnchor.MiddleLeft, Color.white);
-        Layout(header.gameObject, 0f, 30f, 1f, 0f);
-        diagnosisText = TextUi(parent, "Diagnosis", "", 13, TextAnchor.UpperLeft, new Color(1f, 0.9f, 0.58f, 1f));
-        Layout(diagnosisText.gameObject, 0f, 118f, 1f, 0f);
-        feedbackText = TextUi(parent, "Feedback", "", 14, TextAnchor.UpperLeft, new Color(0.94f, 0.98f, 1f, 1f));
-        Layout(feedbackText.gameObject, 0f, 142f, 1f, 0f);
+        Text header = TextUi(parent, "Control Header", "Mission Control", 22, TextAnchor.MiddleLeft, Color.white);
+        Layout(header.gameObject, 0f, 28f, 1f, 0f);
+        diagnosisText = TextUi(parent, "Diagnosis", "", 12, TextAnchor.UpperLeft, new Color(1f, 0.9f, 0.58f, 1f));
+        Layout(diagnosisText.gameObject, 0f, 72f, 1f, 0f);
+        feedbackText = TextUi(parent, "Feedback", "", 13, TextAnchor.UpperLeft, new Color(0.94f, 0.98f, 1f, 1f));
+        Layout(feedbackText.gameObject, 0f, 108f, 1f, 0f);
         mcqText = TextUi(parent, "MCQ Text", "", 13, TextAnchor.UpperLeft, new Color(0.86f, 0.96f, 1f, 1f));
-        Layout(mcqText.gameObject, 0f, 82f, 1f, 0f);
+        Layout(mcqText.gameObject, 0f, 86f, 1f, 0f);
 
         GameObject mcqRow1 = LayoutGroup(parent, "MCQ Row 1", true, 6, 0, TextAnchor.MiddleLeft);
         Layout(mcqRow1, 0f, 34f, 1f, 0f);
@@ -728,16 +739,16 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
         mcqButtons.Add(ButtonUi(mcqRow1.transform, "D", 44f, 32f, delegate { AnswerMcq(3); }));
 
         noviText = TextUi(parent, "Novi Text", "", 13, TextAnchor.UpperLeft, new Color(0.78f, 0.92f, 1f, 1f));
-        Layout(noviText.gameObject, 0f, 86f, 1f, 0f);
+        Layout(noviText.gameObject, 0f, 62f, 1f, 0f);
 
         GameObject llmRow = LayoutGroup(parent, "LLM Row", true, 6, 0, TextAnchor.MiddleLeft);
         Layout(llmRow, 0f, 36f, 1f, 0f);
-        apiKeyInput = InputUi(llmRow.transform, "API Key", "OpenAI API key", 178f, 34f, true);
-        modelInput = InputUi(llmRow.transform, "Model", DefaultModel, 126f, 34f, false);
+        apiKeyInput = InputUi(llmRow.transform, "API Key", "OpenAI API key", 148f, 34f, true);
+        modelInput = InputUi(llmRow.transform, "Model", DefaultModel, 96f, 34f, false);
         modelInput.text = DefaultModel;
         askGptButton = ButtonUi(llmRow.transform, "Ask GPT", 82f, 34f, AskGpt);
 
-        teachInput = InputUi(parent, "Teach Novi", "Teach Novi: name parts, layers, orientation, and reference frame...", 0f, 50f, false);
+        teachInput = InputUi(parent, "Teach Novi", "Teach Novi: parts, layer, direction...", 0f, 46f, false);
         teachInput.lineType = InputField.LineType.MultiLineNewline;
         teachInput.characterLimit = 280;
         GameObject teachRow = LayoutGroup(parent, "Teach Row", true, 6, 0, TextAnchor.MiddleLeft);
@@ -750,36 +761,25 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
     private void BuildBottom(Transform parent)
     {
         statusText = TextUi(parent, "Status", "", 15, TextAnchor.MiddleCenter, new Color(0.08f, 0.14f, 0.24f, 1f));
-        Layout(statusText.gameObject, 0f, 25f, 1f, 0f);
+        Layout(statusText.gameObject, 0f, 24f, 1f, 0f);
 
         GameObject palette = LayoutGroup(parent, "Part Palette", true, 6, 0, TextAnchor.MiddleCenter);
-        Layout(palette, 0f, 38f, 1f, 0f);
+        Layout(palette, 0f, 34f, 1f, 0f);
         partButtons.Clear();
         foreach (KeyValuePair<string, BrickSpec> entry in partLibrary)
         {
-            Button button = ButtonUi(palette.transform, entry.Value.Label, 92f, 32f, delegate { });
+            Button button = ButtonUi(palette.transform, ShortPartLabel(entry.Value), 82f, 30f, delegate { });
             partButtons.Add(button);
         }
 
         GameObject actions = LayoutGroup(parent, "Actions", true, 8, 0, TextAnchor.MiddleCenter);
-        Layout(actions, 0f, 38f, 1f, 0f);
+        Layout(actions, 0f, 34f, 1f, 0f);
         ButtonUi(actions.transform, "Rotate", 84f, 34f, RotateSelectedPart);
         ButtonUi(actions.transform, "Layer -", 84f, 34f, delegate { SetActiveLayer(activeLayer - 1); });
         ButtonUi(actions.transform, "Layer +", 84f, 34f, delegate { SetActiveLayer(activeLayer + 1); });
         ButtonUi(actions.transform, "Submit", 92f, 34f, SubmitBuild);
-        ButtonUi(actions.transform, "Reset", 82f, 34f, ResetBuild);
+        ButtonUi(actions.transform, "Clear", 82f, 34f, ResetBuild);
         nextButton = ButtonUi(actions.transform, "Next", 82f, 34f, NextMission);
-        ButtonUi(actions.transform, "Free", 68f, 34f, delegate { ApplyView(ViewMode.Free); });
-        ButtonUi(actions.transform, "Front", 72f, 34f, delegate { ApplyView(ViewMode.Front); });
-        ButtonUi(actions.transform, "Side", 68f, 34f, delegate { ApplyView(ViewMode.Side); });
-        ButtonUi(actions.transform, "Top", 64f, 34f, delegate { ApplyView(ViewMode.Top); });
-        ButtonUi(actions.transform, "Robot", 72f, 34f, delegate { ApplyView(ViewMode.Robot); });
-
-        GameObject effort = LayoutGroup(parent, "Effort", true, 8, 0, TextAnchor.MiddleCenter);
-        Layout(effort, 0f, 30f, 1f, 0f);
-        ButtonUi(effort.transform, "Effort 1", 84f, 28f, delegate { SetMentalEffort(1); });
-        ButtonUi(effort.transform, "Effort 2", 84f, 28f, delegate { SetMentalEffort(2); });
-        ButtonUi(effort.transform, "Effort 3", 84f, 28f, delegate { SetMentalEffort(3); });
     }
 
     private void StartMission(int index)
@@ -813,7 +813,7 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
         mcqText.text = "";
         noviText.text = "Novi: I am ready to learn, but I will ask if your left/right or high-edge instructions are unclear.";
         SetMcqButtons(false);
-        SetStatus("Choose a basic brick, then click the moon grid. Drag placed bricks to move them; right-click removes.");
+        SetStatus("Pick a brick, click to place. Left-drag bricks. Right-drag the camera. Wheel zooms.");
         Log("start_mission", missions[missionIndex].Id);
     }
 
@@ -860,7 +860,7 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
             }
         }
 
-        SetStatus("Selected " + GetSelectedSpec().Label + " | orientation " + selectedOrientation + " deg.");
+        SetStatus("Selected " + GetSelectedSpec().Label + ". Press Rotate if it faces the wrong way.");
     }
 
     private void SelectCondition(ConditionMode mode)
@@ -938,13 +938,9 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
     private void HandleMouse()
     {
         bool overUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-        if (!overUi)
+        if (isOrbiting)
         {
-            float wheel = Input.mouseScrollDelta.y;
-            if (Mathf.Abs(wheel) > 0.01f)
-            {
-                SetActiveLayer(activeLayer + (wheel > 0f ? 1 : -1));
-            }
+            return;
         }
 
         if (overUi && !isDragging)
@@ -975,13 +971,56 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
             EndDrag();
         }
 
+    }
+
+    private void HandleCameraOrbit()
+    {
+        bool overUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+
+        if (!overUi)
+        {
+            float wheel = Input.mouseScrollDelta.y;
+            if (Mathf.Abs(wheel) > 0.01f)
+            {
+                cameraDistance = Mathf.Clamp(cameraDistance - wheel * 0.42f, MinCameraDistance, MaxCameraDistance);
+                ApplyOrbitCamera();
+            }
+        }
+
         if (!overUi && Input.GetMouseButtonDown(1))
         {
-            string hitId = HitBrickIdUnderMouse();
-            if (!string.IsNullOrEmpty(hitId))
+            isOrbiting = true;
+            rightMouseMoved = false;
+            rightMouseStart = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
+        }
+
+        if (isOrbiting && Input.GetMouseButton(1))
+        {
+            Vector2 current = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
+            if ((current - rightMouseStart).sqrMagnitude > 16f)
             {
-                RemovePlacement(hitId);
+                rightMouseMoved = true;
             }
+
+            float dx = Input.GetAxis("Mouse X");
+            float dy = Input.GetAxis("Mouse Y");
+            cameraYaw += dx * 4.2f;
+            cameraPitch = Mathf.Clamp(cameraPitch - dy * 3.2f, 18f, 68f);
+            ApplyOrbitCamera();
+        }
+
+        if (isOrbiting && Input.GetMouseButtonUp(1))
+        {
+            if (!rightMouseMoved && !overUi)
+            {
+                string hitId = HitBrickIdUnderMouse();
+                if (!string.IsNullOrEmpty(hitId))
+                {
+                    RemovePlacement(hitId);
+                }
+            }
+
+            isOrbiting = false;
         }
     }
 
@@ -1077,7 +1116,14 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
         GameObject obj;
         if (placementObjects.TryGetValue(draggingId, out obj))
         {
-            obj.transform.position = GridToWorld(cell);
+            BrickPlacement placement = FindPlayerPlacement(draggingId);
+            if (placement != null)
+            {
+                Vector3Int oldAnchor = placement.Anchor;
+                placement.Anchor = cell;
+                obj.transform.position = GridToWorld(cell) + VisualRotationOffset(placement);
+                placement.Anchor = oldAnchor;
+            }
         }
     }
 
@@ -1596,11 +1642,10 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
     private string FormatDiagnostic(DiagnosticResult result)
     {
         StringBuilder builder = new StringBuilder();
-        builder.AppendLine("Deterministic geometry diagnosis");
-        builder.AppendLine("Result: " + (result.Passed ? "solved" : "not solved"));
-        builder.AppendLine("Error type: " + ErrorLabel(result.Error));
+        builder.AppendLine(result.Passed ? "Build check: complete" : "Build check: one thing to fix");
+        builder.AppendLine("Focus: " + FriendlyErrorLabel(result.Error));
         builder.AppendLine(result.MainFact);
-        for (int i = 0; i < result.Facts.Count; i++)
+        for (int i = 0; i < result.Facts.Count && i < 2; i++)
         {
             builder.AppendLine("- " + result.Facts[i]);
         }
@@ -2011,26 +2056,48 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
         switch (view)
         {
             case ViewMode.Front:
+                cameraTarget = target;
                 mainCamera.transform.position = new Vector3(0f, 2f, -6.8f);
                 break;
             case ViewMode.Side:
+                cameraTarget = target;
                 mainCamera.transform.position = new Vector3(6.8f, 2f, 0f);
                 break;
             case ViewMode.Top:
+                cameraTarget = Vector3.zero;
                 mainCamera.transform.position = new Vector3(0.01f, 7.3f, 0.01f);
                 target = Vector3.zero;
                 break;
             case ViewMode.Robot:
+                cameraTarget = target;
                 mainCamera.transform.position = new Vector3(4.8f, 2.1f, 3.5f);
                 break;
             default:
-                mainCamera.transform.position = new Vector3(4.3f, 4.1f, -5.8f);
-                break;
+                cameraTarget = new Vector3(0.1f, 0.55f, 0.05f);
+                cameraYaw = 38f;
+                cameraPitch = 34f;
+                cameraDistance = 5.8f;
+                ApplyOrbitCamera();
+                viewSwitches++;
+                Log("view", view.ToString());
+                return;
         }
 
         mainCamera.transform.LookAt(target);
         viewSwitches++;
         Log("view", view.ToString());
+    }
+
+    private void ApplyOrbitCamera()
+    {
+        if (mainCamera == null)
+        {
+            return;
+        }
+
+        Quaternion rotation = Quaternion.Euler(cameraPitch, cameraYaw, 0f);
+        mainCamera.transform.position = cameraTarget + rotation * new Vector3(0f, 0f, -cameraDistance);
+        mainCamera.transform.LookAt(cameraTarget);
     }
 
     private void UpdateHud()
@@ -2042,9 +2109,9 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
 
         MissionData mission = missions[missionIndex];
         titleText.text = "AstroBrick Mission";
-        loadText.text = "Load " + EstimateLoadBand() + " | effort " + mentalEffort + " | layer " + activeLayer + " | selected " + GetSelectedSpec().Label + " @ " + selectedOrientation + " deg";
-        telemetryText.text = mission.Id + " | score " + score + " | solved " + solvedMissions + "/" + missions.Count + "\n" +
-                             "attempts " + attempts + " | hints " + hintsUsed + " | MCQ " + mcqCorrect + "/" + Mathf.Max(1, mcqTotal);
+        loadText.text = "Right-drag to look around | Wheel zoom | Q/E layer | Selected: " + GetSelectedSpec().Label;
+        telemetryText.text = "Mission " + (missionIndex + 1) + "/" + missions.Count + " | Score " + score + "\n" +
+                             "Hints " + hintsUsed + " | Checks " + attempts;
         float load = EstimateLoadScore();
         loadFill.fillAmount = load;
         loadFill.color = LoadColor(EstimateLoadBand(load));
@@ -2052,15 +2119,13 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
         missionText.text =
             mission.Title + "\n" +
             mission.Brief + "\n\n" +
-            mission.SkillPhase + "\n" +
-            "Target: " + mission.TargetDescription + "\n" +
-            "Vocabulary: " + mission.Vocabulary;
+            "Goal: " + mission.TargetDescription;
 
-        partListText.text = "Required target parts\n" + TargetPartList(mission.Target);
+        partListText.text = "Bricks you can use\n" + AllowedPartList(mission);
         targetInfoText.text =
-            "Representation: " + mission.Representation + "\n" +
-            "Rule: basic bricks only. No functional or decorative special parts.\n" +
-            "Disclaimer: LEGO-inspired; not affiliated with or endorsed by LEGO Group.";
+            "Blue ghost = target model\n" +
+            "Green = match | Yellow = missing | Red = extra\n" +
+            "LEGO-inspired; not endorsed by LEGO Group.";
 
         UpdateConditionControls();
         UpdateCursor();
@@ -2526,6 +2591,55 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
         return builder.ToString();
     }
 
+    private string AllowedPartList(MissionData mission)
+    {
+        Dictionary<string, int> counts = new Dictionary<string, int>();
+        for (int i = 0; i < mission.Target.Count; i++)
+        {
+            string label = ShortPartLabel(mission.Target[i].Spec);
+            if (!counts.ContainsKey(label))
+            {
+                counts[label] = 0;
+            }
+
+            counts[label]++;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        int written = 0;
+        foreach (KeyValuePair<string, int> entry in counts)
+        {
+            if (written > 0)
+            {
+                builder.Append("  ");
+            }
+
+            builder.Append(entry.Key).Append(" x").Append(entry.Value);
+            written++;
+        }
+
+        return builder.ToString();
+    }
+
+    private string ShortPartLabel(BrickSpec spec)
+    {
+        switch (spec.Category)
+        {
+            case PartCategory.Brick:
+                return spec.Width + "x" + spec.Depth + " Brick";
+            case PartCategory.Plate:
+                return spec.Width + "x" + spec.Depth + " Plate";
+            case PartCategory.Tile:
+                return spec.Width + "x" + spec.Depth + " Tile";
+            case PartCategory.Slope:
+                return spec.Width + "x" + spec.Depth + " Slope";
+            case PartCategory.Wedge:
+                return spec.Chirality == "left" ? "Left Wedge" : "Right Wedge";
+            default:
+                return "Corner";
+        }
+    }
+
     private string PartSummary(BrickPlacement p)
     {
         if (p == null)
@@ -2564,6 +2678,35 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
                 return "reference_frame_error";
             default:
                 return "unknown";
+        }
+    }
+
+    private string FriendlyErrorLabel(ErrorType error)
+    {
+        switch (error)
+        {
+            case ErrorType.None:
+                return "all done";
+            case ErrorType.WrongPart:
+                return "wrong brick type";
+            case ErrorType.WrongFootprint:
+                return "wrong brick size";
+            case ErrorType.WrongPosition:
+                return "move a brick";
+            case ErrorType.WrongLayer:
+                return "change the layer";
+            case ErrorType.WrongOrientation:
+                return "rotate a slope or wedge";
+            case ErrorType.MirrorError:
+                return "left/right mirror";
+            case ErrorType.SupportError:
+                return "add support underneath";
+            case ErrorType.MissingElement:
+                return "add a missing brick";
+            case ErrorType.ExtraElement:
+                return "remove an extra brick";
+            default:
+                return "compare one piece";
         }
     }
 
@@ -2752,18 +2895,18 @@ public sealed class AstroBrickMissionGame : MonoBehaviour
     private ProjectionGrid Projection(Transform parent, string title, int rows, int cols)
     {
         GameObject root = Panel(parent, title + " Panel", new Color(0.94f, 0.97f, 1f, 0.94f));
-        Layout(root, 0f, rows > 8 ? 118f : 104f, 1f, 0f);
+        Layout(root, 0f, rows > 8 ? 104f : 92f, 1f, 0f);
         ProjectionGrid grid = new ProjectionGrid
         {
-            Header = AbsoluteText(root.transform, title, title + "  target | yours", 13, TextAnchor.UpperLeft, new Color(0.08f, 0.14f, 0.24f, 1f), 12f, 8f, 320f, 18f),
+            Header = AbsoluteText(root.transform, title, title + "  target | yours", 12, TextAnchor.UpperLeft, new Color(0.08f, 0.14f, 0.24f, 1f), 10f, 7f, 260f, 16f),
             TargetCells = new Image[rows, cols],
             PlayerCells = new Image[rows, cols],
             Rows = rows,
             Cols = cols
         };
 
-        MakeProjectionCells(root.transform, grid.TargetCells, rows, cols, 14f, 32f, 10f);
-        MakeProjectionCells(root.transform, grid.PlayerCells, rows, cols, 184f, 32f, 10f);
+        MakeProjectionCells(root.transform, grid.TargetCells, rows, cols, 12f, 28f, 9f);
+        MakeProjectionCells(root.transform, grid.PlayerCells, rows, cols, 158f, 28f, 9f);
         return grid;
     }
 

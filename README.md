@@ -13,7 +13,7 @@ Desktop Unity prototype for a LEGO-inspired 3D spatial construction training gam
 
 - The game opens directly into `AstroBrick Mission`, a cartoon moon-base scene.
 - All scored structures use a controlled basic brick grammar: bricks, plates, tiles, slopes, wedges, and corner slopes.
-- Use the palette to select a brick, click the grid to place it, rotate it, change layer, drag placed bricks, and right-click to remove.
+- Use the palette to select a brick, click the grid to place it, rotate it, change layer, drag placed bricks, and orbit the 3D camera freely.
 - Submit the model to a deterministic geometry engine. The engine diagnoses wrong part, wrong footprint, wrong position, wrong layer, wrong orientation, mirror error, support error, missing element, and extra element.
 - Mission Control gives constructive feedback and reflective four-choice correction prompts.
 - In LLM conditions, GPT explains the already-computed geometry facts; it does not score the answer.
@@ -23,11 +23,12 @@ Desktop Unity prototype for a LEGO-inspired 3D spatial construction training gam
 
 - Left mouse on empty cell: place the selected brick.
 - Left mouse on a brick: drag and drop it.
-- Right mouse on a brick: remove it.
-- Mouse wheel or `Q` / `E`: change active layer.
+- Hold right mouse and drag: rotate the 3D camera.
+- Mouse wheel: zoom the camera.
+- Short right-click on a brick: remove it.
+- `Q` / `E`: change active layer.
 - `R`: rotate the selected brick.
 - `Enter`: submit.
-- `1` free view, `2` front view, `3` side view, `4` top view.
 - `H`: show a hint.
 
 The project is designed for desktop builds and uses Unity's built-in render pipeline and uGUI. Earlier Block Detective prototype scripts are still in `Assets/Scripts`, but `GameBootstrap` now starts `AstroBrickMissionGame`.
