@@ -1,6 +1,6 @@
-# Block Detective Deluxe / Spatial Skills Game
+# AstroBrick Mission / Spatial Skills Game
 
-Desktop Unity prototype for a structured block-construction spatial skills training game. The player joins the Block Detective lab, rebuilds voxel case scenes from projection evidence, receives deterministic geometry diagnostics, can ask a GPT tutor for explanation, and can teach the AI agent Cube a reusable spatial rule.
+Desktop Unity prototype for a LEGO-inspired 3D spatial construction training game. The player guides a little astronaut on a moon-base build board, selects basic brick types, rotates and places them, receives deterministic geometric diagnosis, answers reflective correction prompts, can ask GPT-powered Mission Control for constructive feedback, and can teach the robot Novi to rebuild the structure.
 
 ## Open the project
 
@@ -11,37 +11,40 @@ Desktop Unity prototype for a structured block-construction spatial skills train
 
 ## Gameplay
 
-- The game opens directly into a playable cartoon 3D block board.
-- Use the mouse to paint blocks onto the grid, drag existing blocks to new cells, and right-click blocks to remove them.
-- Compare visual projection panels for front, right, and top evidence. The current model grid turns green for matches, red for extra projection marks, and yellow for missing marks.
-- Submit the model to the deterministic geometry engine. The engine decides correctness; GPT is only used to explain already-computed facts.
-- Switch research conditions C1-C6 across visual feedback, GPT tutor feedback, teach-the-agent feedback, fixed difficulty, and adaptive difficulty.
-- In GPT/Teach conditions, enter an OpenAI API key and use the default `gpt-5.4-mini` model or replace it with another Responses API model.
-- Teach Cube a rule after a diagnostic to test the recursive feedback loop.
+- The game opens directly into `AstroBrick Mission`, a cartoon moon-base scene.
+- All scored structures use a controlled basic brick grammar: bricks, plates, tiles, slopes, wedges, and corner slopes.
+- Use the palette to select a brick, click the grid to place it, rotate it, change layer, drag placed bricks, and right-click to remove.
+- Submit the model to a deterministic geometry engine. The engine diagnoses wrong part, wrong footprint, wrong position, wrong layer, wrong orientation, mirror error, support error, missing element, and extra element.
+- Mission Control gives constructive feedback and reflective four-choice correction prompts.
+- In LLM conditions, GPT explains the already-computed geometry facts; it does not score the answer.
+- In Full System, teach Novi using spatial language such as layer, high edge, left/right, target front, robot view, and support.
 
 ## Controls
 
-- Left mouse on empty cell: paint a block.
-- Left mouse on a block: drag and drop it.
-- Right mouse on a block: remove it.
-- Mouse wheel: change active layer.
-- `Q` / `E`: change active layer.
-- `Space`: add or remove the active cell.
+- Left mouse on empty cell: place the selected brick.
+- Left mouse on a brick: drag and drop it.
+- Right mouse on a brick: remove it.
+- Mouse wheel or `Q` / `E`: change active layer.
+- `R`: rotate the selected brick.
 - `Enter`: submit.
-- `1` front view, `2` right view, `3` top view, `4` free view.
+- `1` free view, `2` front view, `3` side view, `4` top view.
 - `H`: show a hint.
 
-The project is designed for desktop builds and uses Unity's built-in render pipeline and uGUI. The original prototype scripts are still in `Assets/Scripts`, but `GameBootstrap` now starts `BlockDetectiveDeluxeGame`.
+The project is designed for desktop builds and uses Unity's built-in render pipeline and uGUI. Earlier Block Detective prototype scripts are still in `Assets/Scripts`, but `GameBootstrap` now starts `AstroBrickMissionGame`.
 
 ## GPT setup
 
 1. Press Play in Unity.
-2. Choose C2, C3, C5, or C6.
-3. Paste your OpenAI API key in the right-side tutor panel.
+2. Choose `LLM + MCQ` or `Full System`.
+3. Paste your OpenAI API key in the Mission Control panel.
 4. Keep the model as `gpt-5.4-mini` for a normal low-latency tutor, or type another model name.
 5. Click `Ask GPT` after building or submitting.
 
 For a real classroom or published build, route GPT calls through your own small server instead of shipping an API key inside the Unity client.
+
+## LEGO-inspired disclaimer
+
+This is an independent LEGO-inspired spatial learning prototype. It is not affiliated with, sponsored by, or endorsed by the LEGO Group, and it does not use LEGO logos or special functional parts as core scored task materials.
 
 ## Build target
 
