@@ -47,8 +47,15 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         LevelSelect,
         Briefing,
         Build,
+        TestFeedback,
+        Reflection,
+        TeachRobot,
         Complete,
-        Settings
+        Progress,
+        Settings,
+        Pause,
+        Dashboard,
+        Controls
     }
 
     private sealed class ShapeDefinition
@@ -86,8 +93,11 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         public string Hint;
         public TaskKind Task;
         public int Difficulty;
+        public string PreviewTitle;
         public readonly List<TargetShape> Target = new List<TargetShape>();
         public readonly List<TargetShape> StartingShapes = new List<TargetShape>();
+        public readonly List<string> ProgressSteps = new List<string>();
+        public readonly List<string> Challenges = new List<string>();
         public readonly Dictionary<ShapeKind, int> Inventory = new Dictionary<ShapeKind, int>();
     }
 
@@ -199,6 +209,8 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     private string hudRobotHintText = "";
     private string hudStarText = "* - -";
     private string playerName = "Riley";
+    private int selectedProfileIndex;
+    private int selectedReflectionAnswer = -1;
     private int selectedLibraryShapeIndex;
     private readonly HashSet<int> completedLevels = new HashSet<int>();
     private readonly List<Rect> immediateHudRects = new List<Rect>();
@@ -283,11 +295,32 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
             case GameScreen.Briefing:
                 DrawBriefingScreen();
                 break;
+            case GameScreen.TestFeedback:
+                DrawTestFeedbackScreen();
+                break;
+            case GameScreen.Reflection:
+                DrawReflectionScreen();
+                break;
+            case GameScreen.TeachRobot:
+                DrawTeachRobotScreen();
+                break;
             case GameScreen.Complete:
                 DrawLevelCompleteScreen();
                 break;
+            case GameScreen.Progress:
+                DrawProgressScreen();
+                break;
             case GameScreen.Settings:
                 DrawSettingsScreen();
+                break;
+            case GameScreen.Pause:
+                DrawPauseScreen();
+                break;
+            case GameScreen.Dashboard:
+                DrawDashboardScreen();
+                break;
+            case GameScreen.Controls:
+                DrawControlsScreen();
                 break;
             default:
                 HandleImmediatePaletteEvents();
@@ -368,58 +401,327 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
     }
 
+    private Color UiBlue()
+    {
+        return new Color(0.06f, 0.38f, 0.76f, 0.96f);
+    }
+
+    private Color UiDeepBlue()
+    {
+        return new Color(0.02f, 0.16f, 0.42f, 1f);
+    }
+
+    private Color UiLightBlue()
+    {
+        return new Color(0.88f, 0.96f, 1f, 0.96f);
+    }
+
+    private Color UiCream()
+    {
+        return new Color(1f, 0.97f, 0.88f, 0.96f);
+    }
+
+    private void DrawScreenShell(string title, string subtitle)
+    {
+        DrawSolid(new Rect(0f, 0f, 1920f, 1080f), new Color(0.78f, 0.9f, 0.96f, 1f));
+        DrawPanel(new Rect(18f, 18f, 1884f, 1044f), new Color(0.96f, 0.99f, 1f, 0.96f));
+        DrawRobotMascot(new Rect(42f, 36f, 142f, 126f));
+        DrawMiniBlockStack(new Rect(1686f, 36f, 160f, 112f));
+        DrawFittedLabel(new Rect(210f, 34f, 1500f, 62f), title, 48, 28, FontStyle.Bold, TextAnchor.MiddleCenter, UiDeepBlue());
+        DrawFittedLabel(new Rect(360f, 98f, 1200f, 42f), subtitle, 25, 16, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.08f, 0.22f, 0.48f));
+        DrawSolid(new Rect(36f, 174f, 1848f, 2f), new Color(0.14f, 0.42f, 0.78f, 0.28f));
+    }
+
+    private void DrawSectionHeader(Rect rect, string label)
+    {
+        DrawPanel(rect, UiBlue());
+        DrawFittedLabel(new Rect(rect.x + 14f, rect.y + 2f, rect.width - 28f, rect.height - 4f), label, 24, 14, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+    }
+
+    private void DrawPill(Rect rect, string text, Color color)
+    {
+        DrawSolid(new Rect(rect.x + 3f, rect.y + 4f, rect.width, rect.height), new Color(0.03f, 0.12f, 0.22f, 0.18f));
+        DrawSolid(rect, color);
+        DrawFittedLabel(rect, text, 18, 11, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+    }
+
+    private Color TaskColor(TaskKind task)
+    {
+        switch (task)
+        {
+            case TaskKind.Functional:
+                return new Color(0.26f, 0.62f, 0.18f, 0.96f);
+            case TaskKind.Repair:
+                return new Color(0.86f, 0.2f, 0.16f, 0.96f);
+            case TaskKind.Memory:
+                return new Color(0.48f, 0.26f, 0.72f, 0.96f);
+            case TaskKind.Viewpoint:
+                return new Color(0.9f, 0.48f, 0.06f, 0.96f);
+            case TaskKind.Challenge:
+                return new Color(0.78f, 0.18f, 0.42f, 0.96f);
+            default:
+                return new Color(0.08f, 0.45f, 0.84f, 0.96f);
+        }
+    }
+
+    private void DrawTaskBadge(Rect rect, LevelData level)
+    {
+        DrawPill(rect, LevelTaskLabel(level), TaskColor(level.Task));
+    }
+
+    private void DrawRobotMascot(Rect rect)
+    {
+        DrawRobotFace(new Rect(rect.x + rect.width * 0.22f, rect.y + rect.height * 0.16f, rect.width * 0.56f, rect.height * 0.56f));
+        DrawSolid(new Rect(rect.x + rect.width * 0.08f, rect.y + rect.height * 0.1f, rect.width * 0.84f, rect.height * 0.12f), new Color(1f, 0.76f, 0.18f, 1f));
+        DrawSolid(new Rect(rect.x + rect.width * 0.2f, rect.y + rect.height * 0.02f, rect.width * 0.6f, rect.height * 0.14f), new Color(1f, 0.84f, 0.28f, 1f));
+        DrawSolid(new Rect(rect.x + rect.width * 0.06f, rect.y + rect.height * 0.76f, rect.width * 0.2f, rect.height * 0.18f), new Color(0.82f, 0.9f, 0.96f, 1f));
+        DrawSolid(new Rect(rect.x + rect.width * 0.74f, rect.y + rect.height * 0.76f, rect.width * 0.2f, rect.height * 0.18f), new Color(0.82f, 0.9f, 0.96f, 1f));
+    }
+
+    private void DrawMiniBlockStack(Rect rect)
+    {
+        DrawShapeBadge(new Rect(rect.x + 8f, rect.y + 42f, 54f, 44f), ShapeKind.Cube);
+        DrawShapeBadge(new Rect(rect.x + 58f, rect.y + 28f, 74f, 48f), ShapeKind.RectangularPrism);
+        DrawShapeBadge(new Rect(rect.x + 104f, rect.y + 58f, 48f, 44f), ShapeKind.Plate);
+        DrawSolid(new Rect(rect.x + 126f, rect.y + 6f, 48f, 90f), new Color(0.98f, 0.9f, 0.62f, 1f));
+        DrawSolid(new Rect(rect.x + 120f, rect.y + 8f, 60f, 20f), new Color(0.86f, 0.22f, 0.18f, 1f));
+        GUI.Label(new Rect(rect.x + 110f, rect.y - 8f, 80f, 54f), "/\\", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 42, FontStyle.Bold, new Color(0.86f, 0.22f, 0.18f, 1f)));
+    }
+
+    private void DrawSkyPreview(Rect rect)
+    {
+        DrawSolid(rect, new Color(0.6f, 0.83f, 0.96f, 1f));
+        DrawSolid(new Rect(rect.x, rect.y + rect.height * 0.62f, rect.width, rect.height * 0.38f), new Color(0.52f, 0.78f, 0.4f, 1f));
+        DrawSolid(new Rect(rect.x, rect.y + rect.height * 0.72f, rect.width, rect.height * 0.28f), new Color(0.4f, 0.68f, 0.84f, 0.55f));
+        DrawCloud2D(new Rect(rect.x + rect.width * 0.08f, rect.y + rect.height * 0.12f, rect.width * 0.18f, rect.height * 0.13f));
+        DrawCloud2D(new Rect(rect.x + rect.width * 0.7f, rect.y + rect.height * 0.1f, rect.width * 0.22f, rect.height * 0.14f));
+    }
+
+    private void DrawCloud2D(Rect rect)
+    {
+        Color cloud = new Color(1f, 1f, 1f, 0.9f);
+        DrawSolid(new Rect(rect.x, rect.y + rect.height * 0.42f, rect.width, rect.height * 0.4f), cloud);
+        DrawSolid(new Rect(rect.x + rect.width * 0.16f, rect.y + rect.height * 0.18f, rect.width * 0.28f, rect.height * 0.46f), cloud);
+        DrawSolid(new Rect(rect.x + rect.width * 0.42f, rect.y, rect.width * 0.34f, rect.height * 0.66f), cloud);
+    }
+
+    private void DrawShapeShelf(Rect rect, bool interactive)
+    {
+        DrawPanel(rect, new Color(1f, 0.98f, 0.92f, 0.96f));
+        ShapeKind[] order = OrderedShapeKinds();
+        float gap = 16f;
+        float cardWidth = (rect.width - gap * (order.Length + 1)) / order.Length;
+        for (int i = 0; i < order.Length; i++)
+        {
+            ShapeKind kind = order[i];
+            Rect card = new Rect(rect.x + gap + i * (cardWidth + gap), rect.y + 18f, cardWidth, rect.height - 36f);
+            GUIStyle style = kind == selectedKind ? selectedPaletteStyle : paletteStyle;
+            if (interactive)
+            {
+                GUI.Box(card, GUIContent.none, style);
+            }
+            else
+            {
+                DrawPanel(card, new Color(1f, 1f, 1f, 0.82f));
+            }
+
+            DrawShapeBadge(new Rect(card.x + card.width * 0.2f, card.y + 10f, card.width * 0.6f, card.height * 0.45f), kind);
+            DrawFittedLabel(new Rect(card.x + 8f, card.y + card.height * 0.62f, card.width - 16f, 38f), shapes[kind].ShortName, 15, 10, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.06f, 0.14f, 0.28f));
+            if (interactive)
+            {
+                GUI.Label(new Rect(card.x + card.width * 0.5f - 23f, card.y + card.height - 28f, 46f, 24f), GetRemaining(kind).ToString(), badgeStyle);
+            }
+        }
+    }
+
+    private void DrawBuildPreview(Rect rect, LevelData level)
+    {
+        DrawPanel(rect, new Color(0.94f, 0.99f, 1f, 0.96f));
+        Rect scene = new Rect(rect.x + 10f, rect.y + 10f, rect.width - 20f, rect.height - 20f);
+        DrawSkyPreview(scene);
+        DrawSolid(new Rect(scene.x + scene.width * 0.2f, scene.y + scene.height * 0.68f, scene.width * 0.6f, scene.height * 0.16f), new Color(0.38f, 0.68f, 0.28f, 1f));
+        DrawSolid(new Rect(scene.x + scene.width * 0.22f, scene.y + scene.height * 0.78f, scene.width * 0.56f, scene.height * 0.08f), new Color(0.52f, 0.35f, 0.2f, 1f));
+
+        if (level.Number == 1)
+        {
+            DrawBlockPile(scene, new Vector2(0.42f, 0.56f), 3);
+        }
+        else if (level.Number == 2)
+        {
+            DrawTablePreview(scene);
+        }
+        else if (level.Number == 3 || level.Number == 10 || level.Number == 15)
+        {
+            DrawBridgePreview(scene, level.Number == 10);
+        }
+        else if (level.Number == 9 || level.Number == 11)
+        {
+            DrawRampPreview(scene);
+        }
+        else if (level.Number == 12 || level.Number == 13)
+        {
+            DrawWindmillPreview(scene, level.Number == 13);
+        }
+        else if (level.Number == 18 || level.Number == 20)
+        {
+            DrawRoadPreview(scene);
+        }
+        else
+        {
+            DrawHousePreview(scene, level.Number == 4 || level.Number == 5 || level.Number == 7);
+        }
+    }
+
+    private void DrawBlockPile(Rect scene, Vector2 anchor, int height)
+    {
+        float size = scene.width * 0.08f;
+        float baseX = scene.x + scene.width * anchor.x;
+        float baseY = scene.y + scene.height * anchor.y;
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x <= y; x++)
+            {
+                DrawSolid(new Rect(baseX + x * size * 0.9f, baseY - y * size * 0.82f, size, size), shapes[ShapeKind.Cube].Color);
+                DrawSolid(new Rect(baseX + x * size * 0.9f, baseY - y * size * 0.82f, size, size * 0.18f), Color.Lerp(shapes[ShapeKind.Cube].Color, Color.white, 0.3f));
+            }
+        }
+    }
+
+    private void DrawHousePreview(Rect scene, bool simple)
+    {
+        Color wall = new Color(0.78f, 0.63f, 0.42f, 1f);
+        Color roof = new Color(0.88f, 0.24f, 0.18f, 1f);
+        Rect body = new Rect(scene.x + scene.width * 0.38f, scene.y + scene.height * 0.42f, scene.width * 0.24f, scene.height * 0.27f);
+        DrawSolid(body, wall);
+        DrawSolid(new Rect(body.x + body.width * 0.36f, body.y + body.height * 0.48f, body.width * 0.24f, body.height * 0.52f), new Color(0.5f, 0.27f, 0.12f, 1f));
+        DrawSolid(new Rect(body.x + body.width * 0.12f, body.y + body.height * 0.24f, body.width * 0.2f, body.height * 0.22f), new Color(0.18f, 0.56f, 0.82f, 1f));
+        DrawSolid(new Rect(body.x + body.width * 0.68f, body.y + body.height * 0.24f, body.width * 0.2f, body.height * 0.22f), new Color(0.18f, 0.56f, 0.82f, 1f));
+        GUI.Label(new Rect(body.x - body.width * 0.18f, body.y - body.height * 0.72f, body.width * 1.36f, body.height), "/\\", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, simple ? 58 : 70, FontStyle.Bold, roof));
+        DrawSolid(new Rect(body.x - body.width * 0.06f, body.y - body.height * 0.08f, body.width * 1.12f, body.height * 0.18f), roof);
+        DrawSolid(new Rect(body.x + body.width * 0.68f, body.y - body.height * 0.52f, body.width * 0.14f, body.height * 0.42f), new Color(0.68f, 0.48f, 0.28f, 1f));
+    }
+
+    private void DrawTablePreview(Rect scene)
+    {
+        Color top = shapes[ShapeKind.Plate].Color;
+        Color leg = shapes[ShapeKind.RectangularPrism].Color;
+        Rect table = new Rect(scene.x + scene.width * 0.36f, scene.y + scene.height * 0.42f, scene.width * 0.3f, scene.height * 0.1f);
+        DrawSolid(table, top);
+        DrawSolid(new Rect(table.x + 8f, table.y + table.height, table.width * 0.14f, scene.height * 0.2f), leg);
+        DrawSolid(new Rect(table.x + table.width - 24f, table.y + table.height, table.width * 0.14f, scene.height * 0.2f), leg);
+    }
+
+    private void DrawBridgePreview(Rect scene, bool lighthouse)
+    {
+        DrawSolid(new Rect(scene.x + scene.width * 0.1f, scene.y + scene.height * 0.66f, scene.width * 0.22f, scene.height * 0.16f), new Color(0.46f, 0.72f, 0.34f, 1f));
+        DrawSolid(new Rect(scene.x + scene.width * 0.68f, scene.y + scene.height * 0.66f, scene.width * 0.22f, scene.height * 0.16f), new Color(0.46f, 0.72f, 0.34f, 1f));
+        DrawSolid(new Rect(scene.x + scene.width * 0.29f, scene.y + scene.height * 0.58f, scene.width * 0.42f, scene.height * 0.08f), shapes[ShapeKind.RectangularPrism].Color);
+        if (lighthouse)
+        {
+            DrawSolid(new Rect(scene.x + scene.width * 0.78f, scene.y + scene.height * 0.32f, scene.width * 0.06f, scene.height * 0.34f), Color.white);
+            DrawSolid(new Rect(scene.x + scene.width * 0.78f, scene.y + scene.height * 0.42f, scene.width * 0.06f, scene.height * 0.08f), new Color(0.86f, 0.22f, 0.18f, 1f));
+            GUI.Label(new Rect(scene.x + scene.width * 0.75f, scene.y + scene.height * 0.22f, scene.width * 0.12f, scene.height * 0.12f), "/\\", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 36, FontStyle.Bold, new Color(0.86f, 0.22f, 0.18f, 1f)));
+        }
+    }
+
+    private void DrawRampPreview(Rect scene)
+    {
+        DrawSolid(new Rect(scene.x + scene.width * 0.36f, scene.y + scene.height * 0.62f, scene.width * 0.26f, scene.height * 0.08f), new Color(0.72f, 0.58f, 0.4f, 1f));
+        GUI.Label(new Rect(scene.x + scene.width * 0.34f, scene.y + scene.height * 0.34f, scene.width * 0.32f, scene.height * 0.34f), "/\\", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 72, FontStyle.Bold, shapes[ShapeKind.Ramp].Color));
+    }
+
+    private void DrawWindmillPreview(Rect scene, bool repair)
+    {
+        DrawSolid(new Rect(scene.x + scene.width * 0.44f, scene.y + scene.height * 0.48f, scene.width * 0.12f, scene.height * 0.22f), new Color(0.7f, 0.54f, 0.34f, 1f));
+        Vector2 center = new Vector2(scene.x + scene.width * 0.5f, scene.y + scene.height * 0.42f);
+        Color blade = repair ? new Color(0.9f, 0.42f, 0.16f, 1f) : shapes[ShapeKind.Plate].Color;
+        DrawSolid(new Rect(center.x - scene.width * 0.02f, center.y - scene.height * 0.22f, scene.width * 0.04f, scene.height * 0.44f), blade);
+        DrawSolid(new Rect(center.x - scene.width * 0.22f, center.y - scene.height * 0.02f, scene.width * 0.44f, scene.height * 0.04f), blade);
+        DrawSolid(new Rect(center.x - 10f, center.y - 10f, 20f, 20f), new Color(0.1f, 0.18f, 0.26f, 1f));
+    }
+
+    private void DrawRoadPreview(Rect scene)
+    {
+        Color road = new Color(0.46f, 0.5f, 0.52f, 1f);
+        DrawSolid(new Rect(scene.x + scene.width * 0.14f, scene.y + scene.height * 0.62f, scene.width * 0.28f, scene.height * 0.08f), road);
+        DrawSolid(new Rect(scene.x + scene.width * 0.38f, scene.y + scene.height * 0.54f, scene.width * 0.14f, scene.height * 0.08f), road);
+        DrawSolid(new Rect(scene.x + scene.width * 0.5f, scene.y + scene.height * 0.48f, scene.width * 0.32f, scene.height * 0.08f), road);
+    }
+
     private void DrawStartScreen()
     {
-        DrawPanel(new Rect(520f, 120f, 880f, 760f), new Color(1f, 0.98f, 0.92f, 0.96f));
-        GUI.Label(new Rect(560f, 165f, 800f, 70f), "Little Shape Engineer", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 54, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
-        GUI.Label(new Rect(560f, 235f, 800f, 44f), "Build, Rotate, Test, and Fix!", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 30, FontStyle.Bold, new Color(0.18f, 0.46f, 0.86f)));
-        GUI.Label(new Rect(610f, 300f, 700f, 70f), "Every big build starts with simple shapes.", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 28, FontStyle.Normal, new Color(0.12f, 0.16f, 0.22f)));
+        DrawScreenShell("Little Shape Engineer", "Digital block-building game for spatial skills training");
 
-        if (GUI.Button(new Rect(760f, 410f, 400f, 72f), "Start Adventure", testButtonStyle))
+        Rect hero = new Rect(190f, 220f, 1040f, 650f);
+        DrawPanel(hero, UiLightBlue());
+        DrawSkyPreview(new Rect(hero.x + 18f, hero.y + 18f, hero.width - 36f, hero.height - 36f));
+        DrawHousePreview(new Rect(hero.x + 120f, hero.y + 80f, hero.width - 240f, hero.height - 140f), false);
+        DrawRobotMascot(new Rect(hero.x + 60f, hero.y + 380f, 160f, 150f));
+
+        Rect menu = new Rect(1290f, 250f, 430f, 530f);
+        DrawPanel(menu, new Color(1f, 0.98f, 0.92f, 0.96f));
+        DrawSectionHeader(new Rect(menu.x, menu.y, menu.width, 64f), "Start Screen");
+        DrawFittedLabel(new Rect(menu.x + 42f, menu.y + 98f, menu.width - 84f, 78f), "Build, test, fix, and explain your shape ideas.", 26, 17, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.08f, 0.16f, 0.3f));
+
+        if (GUI.Button(new Rect(menu.x + 68f, menu.y + 200f, 294f, 66f), "Start Adventure", testButtonStyle))
         {
             currentScreen = GameScreen.Profile;
             LogEvent("start_button", "Start Adventure");
         }
 
-        if (GUI.Button(new Rect(760f, 502f, 400f, 72f), "Continue", buttonStyle))
+        if (GUI.Button(new Rect(menu.x + 68f, menu.y + 286f, 294f, 58f), "Continue", buttonStyle))
         {
             currentScreen = GameScreen.WorldMap;
             LogEvent("start_button", "Continue");
         }
 
-        if (GUI.Button(new Rect(760f, 594f, 400f, 72f), "Shape Library", buttonStyle))
+        if (GUI.Button(new Rect(menu.x + 68f, menu.y + 364f, 294f, 58f), "Shape Library", buttonStyle))
         {
             currentScreen = GameScreen.ShapeLibrary;
             LogEvent("start_button", "Shape Library");
         }
 
-        if (GUI.Button(new Rect(760f, 686f, 400f, 72f), "Settings", buttonStyle))
+        if (GUI.Button(new Rect(menu.x + 68f, menu.y + 442f, 294f, 58f), "Settings", buttonStyle))
         {
             currentScreen = GameScreen.Settings;
             LogEvent("start_button", "Settings");
         }
-
-        GUI.Label(new Rect(760f, 806f, 400f, 34f), "Version 0.1 MVP", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 18, FontStyle.Bold, new Color(0.36f, 0.45f, 0.55f)));
     }
 
     private void DrawProfileScreen()
     {
-        DrawPanel(new Rect(500f, 140f, 920f, 720f), new Color(0.94f, 0.99f, 1f, 0.96f));
-        GUI.Label(new Rect(560f, 180f, 800f, 58f), "Choose Your Engineer", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 46, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
-        GUI.Label(new Rect(650f, 262f, 620f, 42f), "This is your friendly builder profile.", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 25, FontStyle.Normal, new Color(0.12f, 0.16f, 0.22f)));
+        DrawScreenShell("Player Profile", "Choose your engineer");
+        string[] names = new string[] { "Nova", "Pixel", "Bolt", "Zed" };
+        Color[] colors = new Color[] { new Color(0.22f, 0.48f, 0.82f), new Color(0.88f, 0.38f, 0.66f), new Color(0.92f, 0.62f, 0.16f), new Color(0.35f, 0.62f, 0.25f) };
 
-        DrawPanel(new Rect(760f, 340f, 400f, 250f), new Color(1f, 1f, 1f, 0.92f));
-        DrawRobotFace(new Rect(908f, 368f, 104f, 104f));
-        GUI.Label(new Rect(820f, 492f, 280f, 42f), playerName, MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 32, FontStyle.Bold, new Color(0.1f, 0.18f, 0.27f)));
-        GUI.Label(new Rect(820f, 538f, 280f, 30f), "Beginner Shape Island", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 20, FontStyle.Bold, new Color(0.2f, 0.43f, 0.82f)));
+        DrawPanel(new Rect(390f, 245f, 1140f, 550f), new Color(1f, 0.98f, 0.92f, 0.96f));
+        DrawSectionHeader(new Rect(390f, 245f, 1140f, 64f), "Choose Your Engineer");
 
-        if (GUI.Button(new Rect(760f, 640f, 400f, 72f), "Start Building", testButtonStyle))
+        for (int i = 0; i < names.Length; i++)
+        {
+            Rect card = new Rect(470f + i * 250f, 345f, 190f, 250f);
+            DrawPanel(card, i == selectedProfileIndex ? new Color(0.85f, 0.96f, 1f, 0.98f) : new Color(1f, 1f, 1f, 0.92f));
+            DrawRobotMascot(new Rect(card.x + 32f, card.y + 28f, 126f, 122f));
+            DrawSolid(new Rect(card.x + 32f, card.y + 142f, 126f, 16f), colors[i]);
+            DrawFittedLabel(new Rect(card.x + 20f, card.y + 172f, 150f, 36f), names[i], 22, 14, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.07f, 0.16f, 0.3f));
+            if (GUI.Button(new Rect(card.x + 28f, card.y + 208f, 134f, 34f), i == selectedProfileIndex ? "Selected" : "Choose", i == selectedProfileIndex ? testButtonStyle : buttonStyle))
+            {
+                selectedProfileIndex = i;
+                playerName = names[i];
+            }
+        }
+
+        DrawPanel(new Rect(620f, 630f, 680f, 70f), Color.white);
+        DrawFittedLabel(new Rect(650f, 646f, 180f, 36f), "Engineer Name", 18, 12, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.08f, 0.16f, 0.3f));
+        DrawFittedLabel(new Rect(830f, 646f, 420f, 36f), playerName, 24, 16, FontStyle.Bold, TextAnchor.MiddleLeft, UiBlue());
+
+        if (GUI.Button(new Rect(760f, 740f, 400f, 70f), "Let's Build!", testButtonStyle))
         {
             currentScreen = GameScreen.WorldMap;
             LogEvent("profile_start", playerName);
         }
 
-        if (GUI.Button(new Rect(760f, 730f, 400f, 60f), "Back", buttonStyle))
+        if (GUI.Button(new Rect(70f, 930f, 180f, 58f), "Back", buttonStyle))
         {
             currentScreen = GameScreen.Start;
         }
@@ -427,16 +729,19 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private void DrawShapeLibraryScreen()
     {
-        DrawPanel(new Rect(120f, 90f, 1680f, 900f), new Color(1f, 0.98f, 0.92f, 0.96f));
-        GUI.Label(new Rect(170f, 120f, 1540f, 58f), "Shape Library", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 46, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
+        DrawScreenShell("Shape Library", "Core shapes used in every build");
 
         ShapeKind[] order = OrderedShapeKinds();
         for (int i = 0; i < order.Length; i++)
         {
             ShapeKind kind = order[i];
-            Rect button = new Rect(180f, 220f + i * 96f, 360f, 72f);
-            GUIStyle style = i == selectedLibraryShapeIndex ? selectedPaletteStyle : buttonStyle;
-            if (GUI.Button(button, shapes[kind].Name, style))
+            int col = i % 3;
+            int row = i / 3;
+            Rect card = new Rect(210f + col * 290f, 245f + row * 220f, 248f, 180f);
+            DrawPanel(card, i == selectedLibraryShapeIndex ? new Color(0.84f, 0.94f, 1f, 0.96f) : Color.white);
+            DrawShapeBadge(new Rect(card.x + 66f, card.y + 25f, 116f, 82f), kind);
+            DrawFittedLabel(new Rect(card.x + 18f, card.y + 118f, card.width - 36f, 42f), shapes[kind].Name, 19, 11, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.08f, 0.16f, 0.3f));
+            if (GUI.Button(new Rect(card.x + 58f, card.y + 142f, 132f, 30f), "Open", i == selectedLibraryShapeIndex ? testButtonStyle : buttonStyle))
             {
                 selectedLibraryShapeIndex = i;
             }
@@ -444,27 +749,26 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
         ShapeKind selected = order[Mathf.Clamp(selectedLibraryShapeIndex, 0, order.Length - 1)];
         ShapeDefinition shape = shapes[selected];
-        DrawPanel(new Rect(610f, 220f, 520f, 430f), new Color(0.94f, 0.99f, 1f, 0.92f));
-        DrawShapeBadge(new Rect(760f, 305f, 220f, 150f), selected);
-        GUI.Label(new Rect(650f, 500f, 440f, 48f), shape.Name, MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 36, FontStyle.Bold, new Color(0.1f, 0.18f, 0.27f)));
-        GUI.Label(new Rect(650f, 558f, 440f, 70f), ShapeLibraryDescription(selected), MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 23, FontStyle.Normal, new Color(0.12f, 0.16f, 0.22f)));
+        DrawPanel(new Rect(1160f, 245f, 520f, 500f), UiLightBlue());
+        DrawSectionHeader(new Rect(1160f, 245f, 520f, 60f), shape.Name);
+        DrawShapeBadge(new Rect(1330f, 335f, 180f, 130f), selected);
+        DrawFittedLabel(new Rect(1210f, 495f, 420f, 82f), ShapeLibraryDescription(selected), 22, 14, FontStyle.Normal, TextAnchor.MiddleCenter, new Color(0.08f, 0.16f, 0.3f));
+        DrawPanel(new Rect(1220f, 605f, 400f, 102f), Color.white);
+        GUI.Label(new Rect(1245f, 618f, 350f, 28f), "Build Ideas", smallStyle);
+        DrawFittedLabel(new Rect(1245f, 650f, 350f, 48f), ShapeLibraryUses(selected).Replace("\n", "   "), 18, 12, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.12f, 0.22f, 0.34f));
 
-        DrawPanel(new Rect(1180f, 220f, 520f, 430f), new Color(1f, 1f, 1f, 0.9f));
-        GUI.Label(new Rect(1220f, 250f, 440f, 40f), "What can it build?", smallStyle);
-        GUI.Label(new Rect(1220f, 315f, 440f, 250f), ShapeLibraryUses(selected), bodyStyle);
-
-        if (GUI.Button(new Rect(580f, 760f, 240f, 68f), "Try It", testButtonStyle))
+        if (GUI.Button(new Rect(650f, 810f, 280f, 64f), "Try Level 1", testButtonStyle))
         {
             LoadLevel(0);
             currentScreen = GameScreen.Briefing;
         }
 
-        if (GUI.Button(new Rect(860f, 760f, 240f, 68f), "Next Shape", buttonStyle))
+        if (GUI.Button(new Rect(970f, 810f, 280f, 64f), "Next Shape", buttonStyle))
         {
             selectedLibraryShapeIndex = (selectedLibraryShapeIndex + 1) % order.Length;
         }
 
-        if (GUI.Button(new Rect(1140f, 760f, 240f, 68f), "Back", buttonStyle))
+        if (GUI.Button(new Rect(70f, 930f, 180f, 58f), "Back", buttonStyle))
         {
             currentScreen = GameScreen.Start;
         }
@@ -472,9 +776,10 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private void DrawWorldMapScreen()
     {
-        DrawPanel(new Rect(120f, 90f, 1680f, 900f), new Color(0.94f, 0.99f, 1f, 0.94f));
-        GUI.Label(new Rect(170f, 120f, 1540f, 58f), "Shape Island Map", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 46, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
-        GUI.Label(new Rect(480f, 186f, 960f, 42f), "Choose a world. Each world fixes one part of the island.", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 24, FontStyle.Normal, new Color(0.12f, 0.16f, 0.22f)));
+        DrawScreenShell("World Map", "Choose a learning island");
+        Rect map = new Rect(200f, 230f, 1280f, 680f);
+        DrawPanel(map, UiLightBlue());
+        DrawSkyPreview(new Rect(map.x + 20f, map.y + 20f, map.width - 40f, map.height - 40f));
 
         string[] worlds = new string[]
         {
@@ -485,21 +790,39 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
             "Master Shape City"
         };
 
+        Vector2[] nodes = new Vector2[]
+        {
+            new Vector2(380f, 570f),
+            new Vector2(690f, 390f),
+            new Vector2(970f, 560f),
+            new Vector2(570f, 760f),
+            new Vector2(1160f, 760f)
+        };
+
         for (int i = 0; i < worlds.Length; i++)
         {
-            float x = 230f + (i % 3) * 500f;
-            float y = 280f + (i / 3) * 260f;
-            DrawPanel(new Rect(x, y, 410f, 190f), new Color(1f, 1f, 1f, 0.88f));
-            GUI.Label(new Rect(x + 28f, y + 24f, 350f, 44f), worlds[i], MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 28, FontStyle.Bold, new Color(0.1f, 0.18f, 0.27f)));
-            GUI.Label(new Rect(x + 34f, y + 82f, 340f, 50f), WorldMapDescription(i), MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 20, FontStyle.Normal, new Color(0.16f, 0.22f, 0.29f)));
-            if (GUI.Button(new Rect(x + 95f, y + 132f, 220f, 46f), "Open Levels", buttonStyle))
+            Rect island = new Rect(nodes[i].x - 120f, nodes[i].y - 80f, 240f, 140f);
+            DrawPanel(island, new Color(0.46f, 0.74f, 0.34f, 0.96f));
+            DrawSolid(new Rect(island.x + 24f, island.y + 88f, island.width - 48f, 22f), new Color(0.52f, 0.35f, 0.2f, 1f));
+            DrawPill(new Rect(island.x + 42f, island.y - 22f, 156f, 42f), (i + 1).ToString(), TaskColor((TaskKind)Mathf.Min(i, 5)));
+            DrawFittedLabel(new Rect(island.x + 22f, island.y + 24f, island.width - 44f, 54f), worlds[i], 20, 12, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            if (GUI.Button(new Rect(island.x + 46f, island.y + 100f, 148f, 34f), "Open", buttonStyle))
             {
                 currentScreen = GameScreen.LevelSelect;
                 LogEvent("world_select", worlds[i]);
             }
         }
 
-        if (GUI.Button(new Rect(140f, 900f, 180f, 58f), "Back", buttonStyle))
+        DrawPanel(new Rect(1510f, 300f, 300f, 470f), Color.white);
+        DrawSectionHeader(new Rect(1510f, 300f, 300f, 54f), "World Progress");
+        for (int i = 0; i < worlds.Length; i++)
+        {
+            GUI.Label(new Rect(1540f, 380f + i * 62f, 220f, 30f), worlds[i], smallStyle);
+            DrawSolid(new Rect(1540f, 414f + i * 62f, 210f, 14f), new Color(0.82f, 0.88f, 0.92f, 1f));
+            DrawSolid(new Rect(1540f, 414f + i * 62f, 40f + CompletedInWorld(worlds[i]) * 8f, 14f), new Color(0.32f, 0.68f, 0.24f, 1f));
+        }
+
+        if (GUI.Button(new Rect(70f, 930f, 180f, 58f), "Back", buttonStyle))
         {
             currentScreen = GameScreen.Start;
         }
@@ -507,79 +830,182 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private void DrawLevelSelectScreen()
     {
-        DrawPanel(new Rect(90f, 70f, 1740f, 940f), new Color(1f, 0.98f, 0.92f, 0.96f));
-        GUI.Label(new Rect(150f, 100f, 1620f, 54f), "Choose a Level", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 44, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
+        DrawScreenShell("Level Select", "Levels 1-20");
 
         for (int i = 0; i < levels.Count; i++)
         {
             LevelData level = levels[i];
-            int col = i % 5;
-            int row = i / 5;
-            Rect card = new Rect(150f + col * 330f, 190f + row * 170f, 290f, 130f);
-            DrawPanel(card, completedLevels.Contains(i) ? new Color(0.86f, 1f, 0.78f, 0.92f) : new Color(1f, 1f, 1f, 0.9f));
-            GUI.Label(new Rect(card.x + 16f, card.y + 14f, 258f, 30f), "Level " + level.Number, smallStyle);
-            GUI.Label(new Rect(card.x + 16f, card.y + 46f, 258f, 38f), level.Title, MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 21, FontStyle.Bold, new Color(0.1f, 0.18f, 0.27f)));
-            GUI.Label(new Rect(card.x + 16f, card.y + 84f, 258f, 24f), LevelTaskLabel(level) + "  " + DifficultyDots(level.Difficulty), MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 17, FontStyle.Normal, new Color(0.25f, 0.35f, 0.45f)));
-            if (GUI.Button(new Rect(card.x + 178f, card.y + 82f, 90f, 34f), "Play", buttonStyle))
-            {
-                LoadLevel(i);
-                currentScreen = GameScreen.Briefing;
-            }
+            int col = i % 4;
+            int row = i / 4;
+            Rect card = new Rect(96f + col * 452f, 210f + row * 158f, 420f, 134f);
+            DrawLevelSelectCard(card, i, level);
         }
 
-        if (GUI.Button(new Rect(140f, 928f, 180f, 58f), "World Map", buttonStyle))
+        if (GUI.Button(new Rect(70f, 930f, 180f, 58f), "World Map", buttonStyle))
         {
             currentScreen = GameScreen.WorldMap;
+        }
+
+        if (GUI.Button(new Rect(280f, 930f, 180f, 58f), "Progress", buttonStyle))
+        {
+            currentScreen = GameScreen.Progress;
         }
     }
 
     private void DrawBriefingScreen()
     {
         LevelData level = CurrentLevel;
-        DrawPanel(new Rect(460f, 120f, 1000f, 800f), new Color(1f, 0.98f, 0.92f, 0.96f));
-        GUI.Label(new Rect(520f, 160f, 880f, 42f), "Level " + level.Number + ": " + level.Title, MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 38, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
-        GUI.Label(new Rect(650f, 220f, 620f, 34f), LevelTaskLabel(level) + "   " + DifficultyDots(level.Difficulty), MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 23, FontStyle.Bold, new Color(0.18f, 0.46f, 0.86f)));
+        DrawScreenShell("Level Briefing", "Level " + level.Number + " - " + level.Title);
+        DrawPanel(new Rect(360f, 240f, 1200f, 650f), new Color(1f, 0.98f, 0.92f, 0.96f));
+        DrawTaskBadge(new Rect(410f, 270f, 220f, 44f), level);
+        DrawFittedLabel(new Rect(660f, 264f, 620f, 56f), level.Title, 34, 18, FontStyle.Bold, TextAnchor.MiddleCenter, UiDeepBlue());
+        DrawBuildPreview(new Rect(440f, 350f, 520f, 330f), level);
+        DrawPanel(new Rect(1010f, 350f, 440f, 250f), Color.white);
+        GUI.Label(new Rect(1040f, 376f, 380f, 32f), "Goal", smallStyle);
+        DrawFittedLabel(new Rect(1040f, 420f, 380f, 82f), level.Goal, 22, 14, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.08f, 0.12f, 0.18f));
+        GUI.Label(new Rect(1040f, 520f, 380f, 32f), "Challenges", smallStyle);
+        DrawFittedLabel(new Rect(1040f, 558f, 380f, 30f), ChallengeLine(level), 18, 12, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.08f, 0.18f, 0.32f));
+        DrawPanel(new Rect(1010f, 630f, 440f, 120f), UiLightBlue());
+        DrawRobotFace(new Rect(1036f, 660f, 70f, 70f));
+        DrawFittedLabel(new Rect(1130f, 654f, 285f, 72f), level.Hint, 19, 12, FontStyle.Normal, TextAnchor.MiddleLeft, new Color(0.08f, 0.14f, 0.22f));
 
-        DrawPanel(new Rect(560f, 300f, 800f, 190f), new Color(1f, 1f, 1f, 0.9f));
-        GUI.Label(new Rect(600f, 322f, 720f, 40f), "Goal", smallStyle);
-        GUI.Label(new Rect(600f, 372f, 720f, 90f), level.Goal, bodyStyle);
-
-        DrawPanel(new Rect(560f, 520f, 800f, 150f), new Color(0.85f, 0.95f, 1f, 0.9f));
-        DrawRobotFace(new Rect(600f, 552f, 84f, 84f));
-        GUI.Label(new Rect(710f, 548f, 580f, 86f), level.Hint, bodyStyle);
-
-        if (GUI.Button(new Rect(660f, 735f, 280f, 72f), "Start Building", testButtonStyle))
+        if (GUI.Button(new Rect(740f, 790f, 280f, 68f), "Let's Build!", testButtonStyle))
         {
             currentScreen = GameScreen.Build;
             LogEvent("briefing_start", level.Title);
         }
 
-        if (GUI.Button(new Rect(980f, 735f, 280f, 72f), "Back", buttonStyle))
+        if (GUI.Button(new Rect(1060f, 790f, 220f, 68f), "Back", buttonStyle))
         {
             currentScreen = GameScreen.LevelSelect;
+        }
+    }
+
+    private void DrawTestFeedbackScreen()
+    {
+        LevelData level = CurrentLevel;
+        DrawScreenShell("Run Test", "Feedback and repair");
+        DrawPanel(new Rect(280f, 250f, 740f, 520f), UiLightBlue());
+        DrawBuildPreview(new Rect(320f, 300f, 660f, 300f), level);
+        if (GUI.Button(new Rect(550f, 632f, 220f, 60f), "Run Test", testButtonStyle))
+        {
+            RunTest();
+        }
+
+        DrawPanel(new Rect(1060f, 250f, 560f, 520f), Color.white);
+        DrawRobotMascot(new Rect(1100f, 300f, 140f, 130f));
+        GUI.Label(new Rect(1280f, 310f, 280f, 36f), "Nova's Check", smallStyle);
+        DrawFittedLabel(new Rect(1280f, 360f, 280f, 150f), hudRobotHintText, 22, 14, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.08f, 0.14f, 0.22f));
+        DrawFittedLabel(new Rect(1120f, 540f, 440f, 80f), hudFeedbackText, 24, 15, FontStyle.Bold, TextAnchor.MiddleCenter, UiDeepBlue());
+
+        if (GUI.Button(new Rect(1120f, 660f, 180f, 56f), "Back to Build", buttonStyle))
+        {
+            currentScreen = GameScreen.Build;
+        }
+
+        if (GUI.Button(new Rect(1340f, 660f, 180f, 56f), "Reflect", testButtonStyle))
+        {
+            currentScreen = GameScreen.Reflection;
+        }
+    }
+
+    private void DrawReflectionScreen()
+    {
+        DrawScreenShell("Reflection Question", "Think like an engineer");
+        DrawPanel(new Rect(520f, 260f, 880f, 520f), Color.white);
+        DrawFittedLabel(new Rect(580f, 310f, 760f, 78f), "Which shape helped most in this build?", 30, 18, FontStyle.Bold, TextAnchor.MiddleCenter, UiDeepBlue());
+        ShapeKind[] answers = new ShapeKind[] { ShapeKind.Cube, ShapeKind.Ramp, ShapeKind.Cylinder };
+        for (int i = 0; i < answers.Length; i++)
+        {
+            Rect row = new Rect(650f, 420f + i * 90f, 620f, 64f);
+            DrawPanel(row, i == selectedReflectionAnswer ? new Color(0.86f, 1f, 0.78f, 0.96f) : new Color(0.94f, 0.97f, 1f, 0.96f));
+            DrawPill(new Rect(row.x + 18f, row.y + 12f, 44f, 40f), ((char)('A' + i)).ToString(), UiBlue());
+            DrawShapeBadge(new Rect(row.x + 82f, row.y + 8f, 64f, 46f), answers[i]);
+            DrawFittedLabel(new Rect(row.x + 168f, row.y + 12f, 300f, 38f), shapes[answers[i]].Name, 22, 14, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.08f, 0.14f, 0.24f));
+            if (GUI.Button(new Rect(row.x + 500f, row.y + 14f, 90f, 36f), i == selectedReflectionAnswer ? "Picked" : "Pick", buttonStyle))
+            {
+                selectedReflectionAnswer = i;
+            }
+        }
+
+        if (GUI.Button(new Rect(720f, 704f, 220f, 58f), "Teach Nova", testButtonStyle))
+        {
+            currentScreen = GameScreen.TeachRobot;
+        }
+
+        if (GUI.Button(new Rect(980f, 704f, 220f, 58f), "Skip", buttonStyle))
+        {
+            currentScreen = GameScreen.Complete;
+        }
+    }
+
+    private void DrawTeachRobotScreen()
+    {
+        DrawScreenShell("Teach Nova", "Show the robot your build order");
+        DrawPanel(new Rect(420f, 260f, 1080f, 520f), Color.white);
+        DrawFittedLabel(new Rect(500f, 310f, 920f, 54f), "Show Nova how to build this level.", 30, 18, FontStyle.Bold, TextAnchor.MiddleCenter, UiDeepBlue());
+        for (int i = 0; i < Mathf.Min(3, CurrentLevel.Target.Count); i++)
+        {
+            TargetShape target = CurrentLevel.Target[i];
+            Rect card = new Rect(570f + i * 260f, 410f, 210f, 170f);
+            DrawPanel(card, UiCream());
+            DrawPill(new Rect(card.x + 18f, card.y + 18f, 44f, 38f), (i + 1).ToString(), UiBlue());
+            DrawShapeBadge(new Rect(card.x + 62f, card.y + 40f, 90f, 70f), target.Kind);
+            DrawFittedLabel(new Rect(card.x + 20f, card.y + 118f, card.width - 40f, 34f), shapes[target.Kind].ShortName, 18, 11, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.08f, 0.14f, 0.24f));
+        }
+        DrawRobotMascot(new Rect(1020f, 610f, 150f, 130f));
+        DrawFittedLabel(new Rect(1180f, 626f, 250f, 70f), "Great teaching! I learned it.", 23, 14, FontStyle.Bold, TextAnchor.MiddleCenter, UiDeepBlue());
+
+        if (GUI.Button(new Rect(810f, 690f, 300f, 60f), "Finish Level", testButtonStyle))
+        {
+            currentScreen = GameScreen.Complete;
         }
     }
 
     private void DrawLevelCompleteScreen()
     {
         LevelData level = CurrentLevel;
-        DrawPanel(new Rect(500f, 150f, 920f, 720f), new Color(0.94f, 0.99f, 1f, 0.96f));
-        GUI.Label(new Rect(560f, 190f, 800f, 60f), "Great Build!", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 52, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
-        GUI.Label(new Rect(560f, 270f, 800f, 48f), "* * *", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 48, FontStyle.Bold, new Color(1f, 0.68f, 0.1f)));
-        GUI.Label(new Rect(620f, 350f, 680f, 86f), "You used simple shapes to fix part of Shape Island.", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 28, FontStyle.Normal, new Color(0.12f, 0.16f, 0.22f)));
-        GUI.Label(new Rect(620f, 460f, 680f, 70f), "Robot says: Try looking from the top on the next build.", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 24, FontStyle.Bold, new Color(0.18f, 0.46f, 0.86f)));
+        DrawScreenShell("Level Complete", "Great build!");
+        DrawPanel(new Rect(440f, 230f, 1040f, 650f), UiLightBlue());
+        GUI.Label(new Rect(520f, 285f, 880f, 70f), "Great Build!", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 58, FontStyle.Bold, new Color(0.9f, 0.32f, 0.08f)));
+        GUI.Label(new Rect(660f, 365f, 600f, 70f), "* * *", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 64, FontStyle.Bold, new Color(1f, 0.68f, 0.1f)));
+        DrawBuildPreview(new Rect(760f, 450f, 400f, 260f), level);
+        DrawRobotMascot(new Rect(520f, 585f, 150f, 132f));
+        DrawFittedLabel(new Rect(1180f, 560f, 220f, 100f), "You used simple shapes to solve the task.", 24, 15, FontStyle.Bold, TextAnchor.MiddleCenter, UiDeepBlue());
 
-        if (GUI.Button(new Rect(660f, 610f, 280f, 70f), "Next Level", testButtonStyle))
+        if (GUI.Button(new Rect(650f, 760f, 280f, 66f), "Next Level", testButtonStyle))
         {
             NextLevel();
         }
 
-        if (GUI.Button(new Rect(980f, 610f, 280f, 70f), "Level Select", buttonStyle))
+        if (GUI.Button(new Rect(990f, 760f, 280f, 66f), "Build from Memory", buttonStyle))
         {
-            currentScreen = GameScreen.LevelSelect;
+            currentScreen = GameScreen.Briefing;
+        }
+    }
+
+    private void DrawProgressScreen()
+    {
+        DrawScreenShell("Progress", "Your shape skill journey");
+        DrawPanel(new Rect(280f, 250f, 500f, 520f), Color.white);
+        DrawRobotMascot(new Rect(330f, 300f, 120f, 110f));
+        GUI.Label(new Rect(490f, 320f, 220f, 34f), "Level " + (levelIndex + 1), smallStyle);
+        DrawSolid(new Rect(490f, 376f, 230f, 20f), new Color(0.82f, 0.88f, 0.92f, 1f));
+        DrawSolid(new Rect(490f, 376f, Mathf.Min(230f, completedLevels.Count * 11f), 20f), new Color(0.38f, 0.76f, 0.28f, 1f));
+        DrawFittedLabel(new Rect(330f, 450f, 390f, 70f), completedLevels.Count + " / " + levels.Count + " levels complete", 28, 16, FontStyle.Bold, TextAnchor.MiddleCenter, UiDeepBlue());
+
+        DrawPanel(new Rect(840f, 250f, 780f, 520f), UiLightBlue());
+        DrawSectionHeader(new Rect(840f, 250f, 780f, 56f), "Skills");
+        string[] skills = new string[] { "Spatial Thinking", "Rotation", "Logic", "Memory", "Creativity" };
+        for (int i = 0; i < skills.Length; i++)
+        {
+            Rect row = new Rect(900f, 350f + i * 70f, 660f, 46f);
+            DrawFittedLabel(new Rect(row.x, row.y, 220f, row.height), skills[i], 20, 12, FontStyle.Bold, TextAnchor.MiddleLeft, UiDeepBlue());
+            DrawSolid(new Rect(row.x + 240f, row.y + 14f, 300f, 18f), new Color(0.82f, 0.88f, 0.92f, 1f));
+            DrawSolid(new Rect(row.x + 240f, row.y + 14f, 80f + i * 32f, 18f), TaskColor((TaskKind)Mathf.Min(i, 5)));
         }
 
-        if (GUI.Button(new Rect(820f, 705f, 280f, 60f), "World Map", buttonStyle))
+        if (GUI.Button(new Rect(70f, 930f, 180f, 58f), "Back", buttonStyle))
         {
             currentScreen = GameScreen.WorldMap;
         }
@@ -587,13 +1013,141 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private void DrawSettingsScreen()
     {
-        DrawPanel(new Rect(560f, 160f, 800f, 660f), new Color(1f, 0.98f, 0.92f, 0.96f));
-        GUI.Label(new Rect(620f, 205f, 680f, 52f), "Settings", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 44, FontStyle.Bold, new Color(0.08f, 0.32f, 0.65f)));
-        GUI.Label(new Rect(650f, 300f, 620f, 210f), "Child-friendly MVP settings are simple for now.\n\nCamera: right-drag to look around.\nZoom: mouse wheel.\nRotate shape: Rotate button or R.\nRun Test: Run Test button or Enter.", bodyStyle);
+        DrawScreenShell("Settings", "Simple child-friendly options");
+        DrawPanel(new Rect(560f, 260f, 800f, 520f), Color.white);
+        DrawSettingsRow(640f, 340f, "Sound", true);
+        DrawSettingsRow(640f, 420f, "Music", true);
+        DrawSettingsRow(640f, 500f, "Language", false);
+        DrawSettingsRow(640f, 580f, "Difficulty", false);
+        DrawSettingsRow(640f, 660f, "Color Blind Mode", true);
 
-        if (GUI.Button(new Rect(820f, 640f, 280f, 70f), "Back", buttonStyle))
+        if (GUI.Button(new Rect(820f, 820f, 280f, 64f), "Back", buttonStyle))
         {
             currentScreen = GameScreen.Start;
+        }
+    }
+
+    private void DrawPauseScreen()
+    {
+        DrawScreenShell("Pause Menu", "Take a break");
+        DrawPanel(new Rect(560f, 260f, 800f, 500f), Color.white);
+        if (GUI.Button(new Rect(700f, 340f, 220f, 72f), "Continue", testButtonStyle))
+        {
+            currentScreen = GameScreen.Build;
+        }
+        if (GUI.Button(new Rect(1000f, 340f, 220f, 72f), "Restart", buttonStyle))
+        {
+            LoadLevel(levelIndex);
+            currentScreen = GameScreen.Briefing;
+        }
+        if (GUI.Button(new Rect(700f, 450f, 220f, 72f), "Settings", buttonStyle))
+        {
+            currentScreen = GameScreen.Settings;
+        }
+        if (GUI.Button(new Rect(1000f, 450f, 220f, 72f), "Help", buttonStyle))
+        {
+            currentScreen = GameScreen.Controls;
+        }
+        if (GUI.Button(new Rect(850f, 580f, 220f, 72f), "Home", buttonStyle))
+        {
+            currentScreen = GameScreen.Start;
+        }
+    }
+
+    private void DrawDashboardScreen()
+    {
+        DrawScreenShell("Parent Dashboard", "Research dashboard mockup");
+        DrawPanel(new Rect(440f, 250f, 1040f, 560f), Color.white);
+        DrawFittedLabel(new Rect(500f, 300f, 920f, 44f), "Play Time   3h 25m        Levels Completed   " + completedLevels.Count + "        Accuracy   82%", 25, 14, FontStyle.Bold, TextAnchor.MiddleCenter, UiDeepBlue());
+        for (int i = 0; i < 7; i++)
+        {
+            float h = 90f + Mathf.Sin(i * 1.4f) * 35f;
+            DrawSolid(new Rect(610f + i * 95f, 620f - h, 46f, h), TaskColor((TaskKind)(i % 5)));
+            DrawFittedLabel(new Rect(590f + i * 95f, 640f, 90f, 28f), new string[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" }[i], 16, 10, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.08f, 0.14f, 0.24f));
+        }
+        if (GUI.Button(new Rect(70f, 930f, 180f, 58f), "Back", buttonStyle))
+        {
+            currentScreen = GameScreen.Start;
+        }
+    }
+
+    private void DrawControlsScreen()
+    {
+        DrawScreenShell("Quick Controls", "Operation guide");
+        DrawPanel(new Rect(520f, 240f, 880f, 600f), Color.white);
+        string[] rows = new string[]
+        {
+            "Drag and Drop: place shapes on the board.",
+            "Tap to Select: tap a block to select it.",
+            "Undo / Redo: fix mistakes easily.",
+            "Run Test: check your build.",
+            "Need Help: tap Help anytime."
+        };
+        for (int i = 0; i < rows.Length; i++)
+        {
+            Rect row = new Rect(620f, 320f + i * 86f, 680f, 58f);
+            DrawPill(new Rect(row.x, row.y + 6f, 48f, 44f), (i + 1).ToString(), UiBlue());
+            DrawFittedLabel(new Rect(row.x + 70f, row.y, row.width - 70f, row.height), rows[i], 23, 14, FontStyle.Bold, TextAnchor.MiddleLeft, UiDeepBlue());
+        }
+        if (GUI.Button(new Rect(820f, 780f, 280f, 58f), "Back", buttonStyle))
+        {
+            currentScreen = GameScreen.Build;
+        }
+    }
+
+    private void DrawLevelSelectCard(Rect card, int index, LevelData level)
+    {
+        DrawPanel(card, completedLevels.Contains(index) ? new Color(0.86f, 1f, 0.78f, 0.94f) : Color.white);
+        DrawSolid(new Rect(card.x, card.y, card.width, 38f), UiBlue());
+        DrawFittedLabel(new Rect(card.x + 16f, card.y + 2f, 190f, 34f), level.Number + ". " + level.Title, 21, 12, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
+        DrawTaskBadge(new Rect(card.x + card.width - 158f, card.y + 6f, 140f, 28f), level);
+        DrawBuildPreview(new Rect(card.x + 16f, card.y + 52f, 154f, 62f), level);
+        DrawFittedLabel(new Rect(card.x + 188f, card.y + 50f, 146f, 46f), ShortGoal(level.Goal), 15, 10, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.08f, 0.14f, 0.24f));
+        GUI.Label(new Rect(card.x + 188f, card.y + 98f, 110f, 24f), DifficultyDots(level.Difficulty), MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 18, FontStyle.Bold, new Color(1f, 0.62f, 0.08f)));
+        if (GUI.Button(new Rect(card.x + card.width - 78f, card.y + 94f, 58f, 30f), "Play", buttonStyle))
+        {
+            LoadLevel(index);
+            currentScreen = GameScreen.Briefing;
+        }
+    }
+
+    private int CompletedInWorld(string world)
+    {
+        int count = 0;
+        for (int i = 0; i < levels.Count; i++)
+        {
+            if (levels[i].World == world && completedLevels.Contains(i))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private string ChallengeLine(LevelData level)
+    {
+        if (level.Challenges.Count == 0)
+        {
+            return "Build carefully. Test and fix your idea.";
+        }
+
+        return string.Join("   ", level.Challenges.ToArray());
+    }
+
+    private void DrawSettingsRow(float x, float y, string label, bool toggle)
+    {
+        DrawPanel(new Rect(x, y, 640f, 54f), new Color(0.94f, 0.97f, 1f, 0.96f));
+        DrawFittedLabel(new Rect(x + 24f, y + 8f, 260f, 38f), label, 22, 14, FontStyle.Bold, TextAnchor.MiddleLeft, UiDeepBlue());
+        if (toggle)
+        {
+            DrawSolid(new Rect(x + 520f, y + 14f, 70f, 28f), new Color(0.4f, 0.76f, 0.28f, 1f));
+            DrawSolid(new Rect(x + 562f, y + 10f, 36f, 36f), Color.white);
+        }
+        else
+        {
+            DrawPanel(new Rect(x + 410f, y + 8f, 190f, 38f), Color.white);
+            DrawFittedLabel(new Rect(x + 426f, y + 12f, 150f, 30f), label == "Language" ? "English" : "Normal", 18, 12, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.08f, 0.14f, 0.24f));
         }
     }
 
@@ -680,11 +1234,12 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         immediateHudRects.Clear();
         immediateHudRects.Add(new Rect(22f, 22f, 302f, 76f));
         immediateHudRects.Add(new Rect(548f, 18f, 824f, 84f));
+        immediateHudRects.Add(new Rect(1460f, 22f, 170f, 76f));
         immediateHudRects.Add(new Rect(590f, 778f, 740f, 42f));
         immediateHudRects.Add(new Rect(506f, 826f, 908f, 192f));
         if (!hudCompact)
         {
-            immediateHudRects.Add(new Rect(26f, 130f, 286f, 470f));
+            immediateHudRects.Add(new Rect(26f, 130f, 286f, 660f));
             immediateHudRects.Add(new Rect(1574f, 130f, 318f, 560f));
         }
     }
@@ -705,6 +1260,8 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         {
             hudCompact = !hudCompact;
         }
+
+        DrawFittedLabel(new Rect(334f, 28f, 190f, 48f), "Level " + CurrentLevel.Number + ": " + CurrentLevel.Title, 18, 11, FontStyle.Bold, TextAnchor.MiddleCenter, UiDeepBlue());
 
         DrawPanel(new Rect(548f, 18f, 824f, 84f), new Color(0.99f, 0.98f, 0.94f, 0.9f));
         GUI.enabled = undoStack.Count > 0;
@@ -746,6 +1303,16 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         {
             RunTest();
         }
+
+        if (GUI.Button(new Rect(1464f, 24f, 74f, 60f), "Help", buttonStyle))
+        {
+            currentScreen = GameScreen.Controls;
+        }
+
+        if (GUI.Button(new Rect(1548f, 24f, 74f, 60f), "Pause", buttonStyle))
+        {
+            currentScreen = GameScreen.Pause;
+        }
     }
 
     private void DrawImmediateMissionCard()
@@ -759,24 +1326,29 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         }
 
         LevelData level = CurrentLevel;
-        Rect panel = new Rect(26f, 130f, 286f, 470f);
+        Rect panel = new Rect(26f, 130f, 286f, 660f);
         DrawPanel(panel, new Color(0.99f, 0.96f, 0.89f, 0.93f));
 
-        DrawFittedLabel(new Rect(48f, 148f, 240f, 26f), level.World, 18, 13, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.19f, 0.36f, 0.62f));
-        DrawFittedLabel(new Rect(48f, 178f, 240f, 70f), level.Title, 25, 15, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.1f, 0.14f, 0.2f));
-        GUI.Label(new Rect(48f, 252f, 220f, 28f), LevelTaskLabel(level), MakeGuiStyle(new Color(0.86f, 0.9f, 0.86f, 0.8f), TextAnchor.MiddleLeft, 16, FontStyle.Bold, new Color(0.18f, 0.38f, 0.62f)));
-        DrawFittedLabel(new Rect(48f, 296f, 230f, 88f), level.Goal, 18, 13, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.08f, 0.1f, 0.14f));
+        DrawSectionHeader(new Rect(38f, 144f, 262f, 42f), "Goal");
+        DrawBuildPreview(new Rect(52f, 202f, 210f, 120f), level);
+        DrawFittedLabel(new Rect(54f, 332f, 210f, 54f), level.Goal, 16, 11, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.08f, 0.1f, 0.14f));
 
-        Rect robot = new Rect(46f, 404f, 242f, 104f);
+        DrawSectionHeader(new Rect(38f, 406f, 262f, 40f), "Progress");
+        for (int i = 0; i < Mathf.Min(5, level.ProgressSteps.Count); i++)
+        {
+            bool done = GetSolvedCount() > i || completedLevels.Contains(levelIndex);
+            Rect row = new Rect(54f, 456f + i * 30f, 220f, 24f);
+            DrawSolid(new Rect(row.x, row.y + 4f, 16f, 16f), done ? new Color(0.32f, 0.68f, 0.22f, 1f) : new Color(0.92f, 0.94f, 0.95f, 1f));
+            GUI.Label(new Rect(row.x + 26f, row.y, row.width - 54f, row.height), level.ProgressSteps[i], MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 14, FontStyle.Bold, new Color(0.08f, 0.14f, 0.24f)));
+            GUI.Label(new Rect(row.x + row.width - 22f, row.y, 22f, row.height), done ? "OK" : "", MakeGuiStyle(Color.clear, TextAnchor.MiddleRight, 12, FontStyle.Bold, new Color(0.32f, 0.68f, 0.22f, 1f)));
+        }
+
+        Rect robot = new Rect(46f, 622f, 242f, 126f);
         DrawPanel(robot, new Color(0.86f, 0.94f, 0.96f, 0.88f));
-        DrawRobotFace(new Rect(62f, 426f, 58f, 58f));
+        DrawRobotFace(new Rect(62f, 654f, 58f, 58f));
         string hint = string.IsNullOrEmpty(hudRobotHintText) ? level.Hint : hudRobotHintText;
-        DrawFittedLabel(new Rect(132f, 420f, 136f, 72f), hint, 16, 11, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.09f, 0.13f, 0.18f));
-
-        Rect progress = new Rect(46f, 526f, 242f, 52f);
-        DrawPanel(progress, new Color(1f, 1f, 1f, 0.78f));
-        GUI.Label(new Rect(62f, 538f, 120f, 28f), "Level " + level.Number + "/" + levels.Count, smallStyle);
-        GUI.Label(new Rect(186f, 535f, 86f, 30f), hudStarText, MakeGuiStyle(Color.clear, TextAnchor.MiddleRight, 22, FontStyle.Bold, new Color(0.92f, 0.55f, 0.08f)));
+        DrawFittedLabel(new Rect(132f, 638f, 136f, 78f), hint, 15, 10, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.09f, 0.13f, 0.18f));
+        GUI.Label(new Rect(52f, 754f, 222f, 24f), "Level " + level.Number + "/" + levels.Count + "   " + hudStarText, MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 16, FontStyle.Bold, new Color(0.92f, 0.55f, 0.08f)));
     }
 
     private void DrawRobotFace(Rect rect)
@@ -1292,6 +1864,8 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         final.Target.Add(T(ShapeKind.Cube, 4, 2, 0, 0));
         final.Target.Add(T(ShapeKind.Cylinder, 4, 3, 0, 0));
         levels.Add(final);
+
+        ApplyLevelPresentation();
     }
     private LevelData Level(int number, string world, TaskKind task, string title, string goal, string hint, int difficulty)
     {
@@ -1303,7 +1877,76 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         level.Goal = goal;
         level.Hint = hint;
         level.Difficulty = difficulty;
+        level.PreviewTitle = "Goal Preview";
         return level;
+    }
+
+    private void ApplyLevelPresentation()
+    {
+        for (int i = 0; i < levels.Count; i++)
+        {
+            LevelData level = levels[i];
+            level.ProgressSteps.Clear();
+            level.Challenges.Clear();
+            level.ProgressSteps.Add("Plan");
+            level.ProgressSteps.Add("Build");
+            level.ProgressSteps.Add("Test");
+
+            if (level.Task == TaskKind.Blueprint)
+            {
+                level.Challenges.Add("Match the blueprint");
+                level.Challenges.Add("Check all views");
+            }
+            else if (level.Task == TaskKind.Functional)
+            {
+                level.Challenges.Add("Make it work");
+                level.Challenges.Add("No gaps");
+            }
+            else if (level.Task == TaskKind.Repair)
+            {
+                level.Challenges.Add("Find the problem");
+                level.Challenges.Add("Fix one detail");
+            }
+            else if (level.Task == TaskKind.Memory)
+            {
+                level.Challenges.Add("Study first");
+                level.Challenges.Add("Build from memory");
+            }
+            else if (level.Task == TaskKind.Viewpoint)
+            {
+                level.Challenges.Add("Use Nova's view");
+                level.Challenges.Add("Place the missing block");
+            }
+            else
+            {
+                level.Challenges.Add("Connect all parts");
+                level.Challenges.Add("Final island build");
+            }
+
+            if (level.Number == 1)
+            {
+                level.ProgressSteps.Add("Layer 1");
+                level.ProgressSteps.Add("Layer 2");
+                level.ProgressSteps.Add("Layer 3");
+            }
+            else if (level.Number == 6)
+            {
+                level.ProgressSteps.Add("Walls");
+                level.ProgressSteps.Add("Roof");
+                level.ProgressSteps.Add("Chimney");
+            }
+            else if (level.Number == 18)
+            {
+                level.ProgressSteps.Add("Road");
+                level.ProgressSteps.Add("Truck");
+                level.ProgressSteps.Add("Finish");
+            }
+            else
+            {
+                level.ProgressSteps.Add("Shape match");
+                level.ProgressSteps.Add("Clean build");
+            }
+        }
     }
 
     private static TargetShape T(ShapeKind kind, int x, int y, int z, int rotation)
@@ -2438,7 +3081,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
             }
 
             completedLevels.Add(levelIndex);
-            currentScreen = GameScreen.Complete;
+            currentScreen = GameScreen.TestFeedback;
         }
         else
         {
@@ -2447,6 +3090,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
             SetRobotHintText(diagnostic.Hint);
             SetStarText("* - -");
             RefreshGhosts();
+            currentScreen = GameScreen.TestFeedback;
         }
 
         RefreshUi();

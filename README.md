@@ -30,7 +30,12 @@ Every build in the game is made from these simple shapes.
 - Level Briefing
 - Main Build Screen
 - Run Test
+- Feedback and Repair
+- Reflection Question
+- Teach Nova
 - Level Complete
+- Progress
+- Pause / Help / Settings
 
 ## Child-Friendly Controls
 
@@ -44,6 +49,16 @@ Every build in the game is made from these simple shapes.
 - Right-drag to rotate the camera.
 - Use the mouse wheel to zoom.
 - Right-click a placed shape to remove it.
+
+## UI Redesign
+
+The interface now follows the Little Shape Engineer mockups:
+
+- Blue-and-white card layout
+- Nova helper robot
+- Level 1-20 task cards
+- Goal, progress, tip, and build-plan panels
+- Feedback, reflection, teaching, and completion screens
 
 ## MVP Levels
 
