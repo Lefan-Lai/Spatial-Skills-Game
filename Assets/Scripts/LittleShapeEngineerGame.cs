@@ -134,6 +134,8 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     private Transform ghostRoot;
     private Transform cursorRoot;
     private Transform robotRoot;
+    private Transform lighthouseRoot;
+    private Transform treeRoot;
     private Transform lighthouseLight;
 
     private Material grassMaterial;
@@ -167,6 +169,9 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     private GameScreen currentScreen = GameScreen.Start;
     private ShapeKind selectedKind = ShapeKind.Cube;
     private int selectedRotation;
+    private int selectedBuildLayer;
+    private int cameraPresetIndex;
+    private bool hudCompact;
     private bool draggingFromPalette;
     private bool draggingExisting;
     private PlacedShape draggedShape;
@@ -181,8 +186,8 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private float cameraYaw = 43f;
     private float cameraPitch = 43f;
-    private float cameraDistance = 10.6f;
-    private Vector3 cameraTarget = new Vector3(0f, 0.75f, 0f);
+    private float cameraDistance = 9.4f;
+    private Vector3 cameraTarget = new Vector3(0f, 0.68f, 0f);
     private bool orbitingCamera;
     private Vector3 orbitStartMouse;
     private bool blueprintVisible = true;
@@ -307,15 +312,20 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
             return;
         }
 
-        panelStyle = MakeGuiStyle(new Color(1f, 0.97f, 0.9f, 0.96f), TextAnchor.UpperLeft, 24, FontStyle.Normal, new Color(0.12f, 0.15f, 0.2f));
-        titleStyle = MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 36, FontStyle.Bold, new Color(0.1f, 0.14f, 0.2f));
-        bodyStyle = MakeGuiStyle(Color.clear, TextAnchor.UpperLeft, 25, FontStyle.Normal, new Color(0.08f, 0.1f, 0.14f));
-        smallStyle = MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 21, FontStyle.Bold, new Color(0.2f, 0.43f, 0.82f));
-        buttonStyle = MakeGuiStyle(new Color(1f, 1f, 1f, 0.94f), TextAnchor.MiddleCenter, 24, FontStyle.Bold, new Color(0.16f, 0.28f, 0.43f));
-        testButtonStyle = MakeGuiStyle(new Color(0.82f, 1f, 0.48f, 0.98f), TextAnchor.MiddleCenter, 28, FontStyle.Bold, new Color(0.18f, 0.5f, 0.06f));
-        badgeStyle = MakeGuiStyle(new Color(0.13f, 0.48f, 0.9f, 0.96f), TextAnchor.MiddleCenter, 23, FontStyle.Bold, Color.white);
-        paletteStyle = MakeGuiStyle(new Color(1f, 1f, 1f, 0.9f), TextAnchor.MiddleCenter, 20, FontStyle.Bold, new Color(0.1f, 0.13f, 0.18f));
-        selectedPaletteStyle = MakeGuiStyle(new Color(0.84f, 0.94f, 1f, 0.98f), TextAnchor.MiddleCenter, 20, FontStyle.Bold, new Color(0.05f, 0.22f, 0.44f));
+        if (uiFont == null)
+        {
+            uiFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        }
+
+        panelStyle = MakeGuiStyle(new Color(0.99f, 0.96f, 0.89f, 0.94f), TextAnchor.UpperLeft, 21, FontStyle.Normal, new Color(0.13f, 0.16f, 0.2f));
+        titleStyle = MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 27, FontStyle.Bold, new Color(0.1f, 0.14f, 0.2f));
+        bodyStyle = MakeGuiStyle(Color.clear, TextAnchor.UpperLeft, 20, FontStyle.Normal, new Color(0.08f, 0.1f, 0.14f));
+        smallStyle = MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 18, FontStyle.Bold, new Color(0.19f, 0.36f, 0.62f));
+        buttonStyle = MakeGuiStyle(new Color(1f, 0.99f, 0.95f, 0.96f), TextAnchor.MiddleCenter, 18, FontStyle.Bold, new Color(0.17f, 0.27f, 0.38f));
+        testButtonStyle = MakeGuiStyle(new Color(0.76f, 0.92f, 0.42f, 0.98f), TextAnchor.MiddleCenter, 23, FontStyle.Bold, new Color(0.16f, 0.39f, 0.1f));
+        badgeStyle = MakeGuiStyle(new Color(0.22f, 0.45f, 0.75f, 0.96f), TextAnchor.MiddleCenter, 20, FontStyle.Bold, Color.white);
+        paletteStyle = MakeGuiStyle(new Color(1f, 0.99f, 0.95f, 0.9f), TextAnchor.MiddleCenter, 16, FontStyle.Bold, new Color(0.1f, 0.13f, 0.18f));
+        selectedPaletteStyle = MakeGuiStyle(new Color(0.84f, 0.93f, 0.98f, 0.98f), TextAnchor.MiddleCenter, 16, FontStyle.Bold, new Color(0.05f, 0.22f, 0.44f));
     }
 
     private GUIStyle MakeGuiStyle(Color background, TextAnchor alignment, int fontSize, FontStyle fontStyle, Color textColor)
@@ -330,8 +340,10 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         style.alignment = alignment;
         style.fontSize = fontSize;
         style.fontStyle = fontStyle;
+        style.font = uiFont;
         style.wordWrap = true;
-        style.padding = new RectOffset(12, 12, 8, 8);
+        style.clipping = TextClipping.Clip;
+        style.padding = new RectOffset(16, 16, 10, 10);
         return style;
     }
 
@@ -661,77 +673,105 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     private void UpdateImmediateHudRects()
     {
         immediateHudRects.Clear();
-        immediateHudRects.Add(new Rect(18f, 20f, 230f, 108f));
-        immediateHudRects.Add(new Rect(590f, 18f, 740f, 106f));
-        immediateHudRects.Add(new Rect(1690f, 20f, 205f, 108f));
-        immediateHudRects.Add(new Rect(24f, 150f, 326f, 744f));
-        immediateHudRects.Add(new Rect(1530f, 150f, 366f, 744f));
-        immediateHudRects.Add(new Rect(360f, 844f, 1200f, 206f));
+        immediateHudRects.Add(new Rect(22f, 22f, 302f, 76f));
+        immediateHudRects.Add(new Rect(548f, 18f, 824f, 84f));
+        immediateHudRects.Add(new Rect(590f, 778f, 740f, 42f));
+        immediateHudRects.Add(new Rect(506f, 826f, 908f, 192f));
+        if (!hudCompact)
+        {
+            immediateHudRects.Add(new Rect(26f, 130f, 286f, 470f));
+            immediateHudRects.Add(new Rect(1574f, 130f, 318f, 560f));
+        }
     }
 
     private void DrawImmediateTopBar()
     {
-        if (GUI.Button(new Rect(20f, 24f, 100f, 82f), "Back", buttonStyle))
+        if (GUI.Button(new Rect(24f, 24f, 86f, 60f), "Back", buttonStyle))
         {
             currentScreen = GameScreen.Briefing;
         }
 
-        if (GUI.Button(new Rect(136f, 24f, 100f, 82f), "Map", buttonStyle))
+        if (GUI.Button(new Rect(122f, 24f, 86f, 60f), "Map", buttonStyle))
         {
             currentScreen = GameScreen.WorldMap;
         }
 
-        DrawPanel(new Rect(590f, 18f, 740f, 98f), new Color(1f, 1f, 1f, 0.92f));
+        if (GUI.Button(new Rect(220f, 24f, 96f, 60f), hudCompact ? "Show" : "Focus", buttonStyle))
+        {
+            hudCompact = !hudCompact;
+        }
+
+        DrawPanel(new Rect(548f, 18f, 824f, 84f), new Color(0.99f, 0.98f, 0.94f, 0.9f));
         GUI.enabled = undoStack.Count > 0;
-        if (GUI.Button(new Rect(615f, 32f, 132f, 70f), "Undo", buttonStyle))
+        if (GUI.Button(new Rect(568f, 31f, 96f, 54f), "Undo", buttonStyle))
         {
             Undo();
         }
 
         GUI.enabled = redoStack.Count > 0;
-        if (GUI.Button(new Rect(765f, 32f, 132f, 70f), "Redo", buttonStyle))
+        if (GUI.Button(new Rect(678f, 31f, 96f, 54f), "Redo", buttonStyle))
         {
             Redo();
         }
 
         GUI.enabled = true;
-        if (GUI.Button(new Rect(915f, 32f, 150f, 70f), "Rotate", buttonStyle))
+        if (GUI.Button(new Rect(788f, 31f, 108f, 54f), "Rotate", buttonStyle))
         {
             RotateSelected();
         }
 
-        if (GUI.Button(new Rect(1085f, 28f, 215f, 78f), "Run Test", testButtonStyle))
+        if (GUI.Button(new Rect(910f, 31f, 104f, 54f), "3D View", buttonStyle))
         {
-            RunTest();
+            CycleCameraView();
         }
 
-        if (GUI.Button(new Rect(1710f, 24f, 170f, 82f), "Next", buttonStyle))
+        if (GUI.Button(new Rect(1028f, 31f, 54f, 54f), "-", buttonStyle))
         {
-            NextLevel();
+            ChangeBuildLayer(-1);
+        }
+
+        GUI.Label(new Rect(1088f, 31f, 104f, 54f), "Layer " + (selectedBuildLayer + 1), MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 18, FontStyle.Bold, new Color(0.16f, 0.26f, 0.36f)));
+
+        if (GUI.Button(new Rect(1198f, 31f, 54f, 54f), "+", buttonStyle))
+        {
+            ChangeBuildLayer(1);
+        }
+
+        if (GUI.Button(new Rect(1266f, 27f, 88f, 62f), "Test", testButtonStyle))
+        {
+            RunTest();
         }
     }
 
     private void DrawImmediateMissionCard()
     {
+        if (hudCompact)
+        {
+            DrawPanel(new Rect(28f, 112f, 350f, 112f), new Color(0.99f, 0.96f, 0.89f, 0.88f));
+            DrawFittedLabel(new Rect(48f, 126f, 310f, 30f), "Level " + CurrentLevel.Number + ": " + CurrentLevel.Title, 18, 13, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.19f, 0.36f, 0.62f));
+            DrawFittedLabel(new Rect(48f, 160f, 310f, 46f), ShortGoal(CurrentLevel.Goal), 17, 12, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.1f, 0.13f, 0.17f));
+            return;
+        }
+
         LevelData level = CurrentLevel;
-        Rect panel = new Rect(24f, 150f, 326f, 744f);
-        DrawPanel(panel, new Color(1f, 0.97f, 0.9f, 0.96f));
+        Rect panel = new Rect(26f, 130f, 286f, 470f);
+        DrawPanel(panel, new Color(0.99f, 0.96f, 0.89f, 0.93f));
 
-        GUI.Label(new Rect(50f, 174f, 260f, 34f), level.World, smallStyle);
-        GUI.Label(new Rect(50f, 210f, 260f, 54f), level.Title, titleStyle);
-        GUI.Label(new Rect(50f, 272f, 230f, 36f), LevelTaskLabel(level), smallStyle);
-        GUI.Label(new Rect(50f, 330f, 254f, 150f), level.Goal, bodyStyle);
+        DrawFittedLabel(new Rect(48f, 148f, 240f, 26f), level.World, 18, 13, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.19f, 0.36f, 0.62f));
+        DrawFittedLabel(new Rect(48f, 178f, 240f, 70f), level.Title, 25, 15, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.1f, 0.14f, 0.2f));
+        GUI.Label(new Rect(48f, 252f, 220f, 28f), LevelTaskLabel(level), MakeGuiStyle(new Color(0.86f, 0.9f, 0.86f, 0.8f), TextAnchor.MiddleLeft, 16, FontStyle.Bold, new Color(0.18f, 0.38f, 0.62f)));
+        DrawFittedLabel(new Rect(48f, 296f, 230f, 88f), level.Goal, 18, 13, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.08f, 0.1f, 0.14f));
 
-        Rect robot = new Rect(44f, 506f, 286f, 176f);
-        DrawPanel(robot, new Color(0.85f, 0.95f, 1f, 0.9f));
-        DrawRobotFace(new Rect(62f, 548f, 88f, 88f));
+        Rect robot = new Rect(46f, 404f, 242f, 104f);
+        DrawPanel(robot, new Color(0.86f, 0.94f, 0.96f, 0.88f));
+        DrawRobotFace(new Rect(62f, 426f, 58f, 58f));
         string hint = string.IsNullOrEmpty(hudRobotHintText) ? level.Hint : hudRobotHintText;
-        GUI.Label(new Rect(162f, 532f, 142f, 112f), hint, bodyStyle);
+        DrawFittedLabel(new Rect(132f, 420f, 136f, 72f), hint, 16, 11, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.09f, 0.13f, 0.18f));
 
-        Rect progress = new Rect(44f, 704f, 286f, 150f);
-        DrawPanel(progress, new Color(1f, 1f, 1f, 0.86f));
-        GUI.Label(new Rect(62f, 724f, 220f, 34f), "Progress  Level " + level.Number + " / " + levels.Count, smallStyle);
-        GUI.Label(new Rect(62f, 776f, 236f, 42f), hudStarText, MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 40, FontStyle.Bold, new Color(1f, 0.68f, 0.1f)));
+        Rect progress = new Rect(46f, 526f, 242f, 52f);
+        DrawPanel(progress, new Color(1f, 1f, 1f, 0.78f));
+        GUI.Label(new Rect(62f, 538f, 120f, 28f), "Level " + level.Number + "/" + levels.Count, smallStyle);
+        GUI.Label(new Rect(186f, 535f, 86f, 30f), hudStarText, MakeGuiStyle(Color.clear, TextAnchor.MiddleRight, 22, FontStyle.Bold, new Color(0.92f, 0.55f, 0.08f)));
     }
 
     private void DrawRobotFace(Rect rect)
@@ -746,25 +786,37 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private void DrawImmediateBlueprintCard()
     {
-        LevelData level = CurrentLevel;
-        Rect panel = new Rect(1530f, 150f, 366f, 744f);
-        DrawPanel(panel, new Color(0.94f, 0.99f, 1f, 0.96f));
-        DrawSolid(new Rect(1530f, 150f, 366f, 72f), new Color(0.1f, 0.47f, 0.9f, 1f));
-        GUI.Label(new Rect(1530f, 158f, 366f, 52f), "Blueprint", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 34, FontStyle.Bold, Color.white));
-        GUI.Label(new Rect(1562f, 246f, 280f, 34f), BlueprintLabel(level), smallStyle);
+        if (hudCompact)
+        {
+            DrawPanel(new Rect(1578f, 112f, 292f, 120f), new Color(0.94f, 0.98f, 0.98f, 0.88f));
+            GUI.Label(new Rect(1598f, 126f, 252f, 28f), "Build Plan", smallStyle);
+            DrawProjectionImmediate(new Rect(1596f, 158f, 252f, 58f), "Top", 0);
+            return;
+        }
 
-        DrawProjectionImmediate(new Rect(1560f, 302f, 306f, 150f), "Top View", 0);
-        DrawProjectionImmediate(new Rect(1560f, 486f, 306f, 150f), "Front View", 1);
-        DrawProjectionImmediate(new Rect(1560f, 670f, 306f, 150f), "Side View", 2);
+        LevelData level = CurrentLevel;
+        Rect panel = new Rect(1574f, 130f, 318f, 560f);
+        DrawPanel(panel, new Color(0.94f, 0.98f, 0.98f, 0.93f));
+        DrawSolid(new Rect(1574f, 130f, 318f, 58f), new Color(0.18f, 0.38f, 0.66f, 0.95f));
+        GUI.Label(new Rect(1574f, 137f, 318f, 42f), "Build Plan", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 27, FontStyle.Bold, Color.white));
+        DrawFittedLabel(new Rect(1598f, 205f, 270f, 28f), BlueprintLabel(level), 16, 12, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.18f, 0.38f, 0.62f));
+
+        DrawProjectionImmediate(new Rect(1594f, 252f, 276f, 118f), "Top View", 0);
+        DrawProjectionImmediate(new Rect(1594f, 388f, 276f, 118f), "Front View", 1);
+        DrawProjectionImmediate(new Rect(1594f, 524f, 276f, 118f), "Side View", 2);
     }
 
     private void DrawProjectionImmediate(Rect rect, string label, int mode)
     {
-        DrawPanel(rect, new Color(1f, 1f, 1f, 0.86f));
-        GUI.Label(new Rect(rect.x + 16f, rect.y + 8f, 200f, 30f), label, smallStyle);
+        DrawPanel(rect, new Color(0.98f, 0.99f, 0.96f, 0.9f));
+        float headerHeight = rect.height < 80f ? 18f : 24f;
+        DrawSolid(new Rect(rect.x + 12f, rect.y + 8f, rect.width - 24f, headerHeight), new Color(0.83f, 0.89f, 0.86f, 0.75f));
+        GUI.Label(new Rect(rect.x + 20f, rect.y + 8f, 190f, headerHeight), label, MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, rect.height < 80f ? 13 : 15, FontStyle.Bold, new Color(0.18f, 0.38f, 0.62f)));
 
-        Rect grid = new Rect(rect.x + 18f, rect.y + 48f, rect.width - 36f, rect.height - 64f);
-        DrawSolid(grid, new Color(0.9f, 0.96f, 1f, 0.55f));
+        Rect grid = rect.height < 80f
+            ? new Rect(rect.x + 16f, rect.y + 32f, rect.width - 32f, rect.height - 40f)
+            : new Rect(rect.x + 16f, rect.y + 38f, rect.width - 32f, rect.height - 52f);
+        DrawSolid(grid, new Color(0.9f, 0.96f, 0.98f, 0.5f));
         int cols = 9;
         int rows = 5;
         float cw = grid.width / cols;
@@ -773,7 +825,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         {
             for (int y = 0; y < rows; y++)
             {
-                DrawSolid(new Rect(grid.x + x * cw + 1f, grid.y + y * ch + 1f, cw - 2f, ch - 2f), new Color(1f, 1f, 1f, 0.3f));
+                DrawSolid(new Rect(grid.x + x * cw + 1f, grid.y + y * ch + 1f, cw - 2f, ch - 2f), new Color(1f, 1f, 1f, 0.26f));
             }
         }
 
@@ -811,15 +863,15 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
             Color mark = shapes[target.Kind].Color;
             mark.a = 0.95f;
-            DrawSolid(new Rect(grid.x + col * cw + 4f, grid.y + (rows - 1 - row) * ch + 4f, cw - 8f, ch - 8f), mark);
+            DrawSolid(new Rect(grid.x + col * cw + 4f, grid.y + (rows - 1 - row) * ch + 4f, Mathf.Max(8f, cw - 8f), Mathf.Max(8f, ch - 8f)), mark);
         }
     }
 
     private void DrawImmediatePalette()
     {
-        DrawPanel(new Rect(360f, 844f, 1200f, 206f), new Color(1f, 0.98f, 0.92f, 0.96f));
-        DrawSolid(new Rect(450f, 792f, 1020f, 46f), new Color(0.1f, 0.47f, 0.9f, 0.88f));
-        GUI.Label(new Rect(450f, 792f, 1020f, 46f), hudFeedbackText, MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 26, FontStyle.Bold, Color.white));
+        DrawPanel(new Rect(506f, 826f, 908f, 192f), new Color(1f, 0.98f, 0.92f, 0.96f));
+        DrawSolid(new Rect(590f, 778f, 740f, 42f), new Color(0.18f, 0.45f, 0.72f, 0.9f));
+        DrawFittedLabel(new Rect(610f, 782f, 700f, 34f), hudFeedbackText, 22, 14, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
 
         ShapeKind[] order = new ShapeKind[]
         {
@@ -837,15 +889,15 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
             Rect card = PaletteCardRect(i);
             GUIStyle style = kind == selectedKind ? selectedPaletteStyle : paletteStyle;
             GUI.Box(card, GUIContent.none, style);
-            DrawShapeBadge(new Rect(card.x + 40f, card.y + 18f, 100f, 54f), kind);
-            GUI.Label(new Rect(card.x + 10f, card.y + 78f, card.width - 20f, 28f), shapes[kind].Name, style);
-            GUI.Label(new Rect(card.x + card.width * 0.5f - 28f, card.y + 112f, 56f, 30f), GetRemaining(kind).ToString(), badgeStyle);
+            DrawShapeBadge(new Rect(card.x + 24f, card.y + 18f, 80f, 58f), kind);
+            DrawFittedLabel(new Rect(card.x + 8f, card.y + 82f, card.width - 16f, 28f), shapes[kind].ShortName, 16, 11, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.1f, 0.13f, 0.18f));
+            GUI.Label(new Rect(card.x + card.width * 0.5f - 24f, card.y + 114f, 48f, 28f), GetRemaining(kind).ToString(), badgeStyle);
         }
     }
 
     private Rect PaletteCardRect(int index)
     {
-        return new Rect(384f + index * 190f, 870f, 168f, 156f);
+        return new Rect(528f + index * 145f, 852f, 128f, 144f);
     }
 
     private void DrawShapeBadge(Rect rect, ShapeKind kind)
@@ -920,6 +972,20 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         GUI.DrawTexture(rect, GetImmediateTexture(color));
     }
 
+    private void DrawFittedLabel(Rect rect, string text, int maxSize, int minSize, FontStyle fontStyle, TextAnchor anchor, Color color)
+    {
+        int size = Mathf.Max(minSize, maxSize);
+        GUIStyle style = MakeGuiStyle(Color.clear, anchor, size, fontStyle, color);
+        GUIContent content = new GUIContent(text);
+        while (size > minSize && style.CalcHeight(content, rect.width) > rect.height)
+        {
+            size--;
+            style.fontSize = size;
+        }
+
+        GUI.Label(rect, text, style);
+    }
+
     private Vector2 MouseDesignPosition()
     {
         return new Vector2(
@@ -939,7 +1005,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         }
 
         mainCamera.clearFlags = CameraClearFlags.SolidColor;
-        mainCamera.backgroundColor = new Color(0.58f, 0.84f, 1f);
+        mainCamera.backgroundColor = new Color(0.68f, 0.84f, 0.93f);
         mainCamera.fieldOfView = 39f;
         mainCamera.nearClipPlane = 0.03f;
         mainCamera.farClipPlane = 120f;
@@ -952,12 +1018,12 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         }
 
         existingLight.type = LightType.Directional;
-        existingLight.intensity = 1.18f;
-        existingLight.color = new Color(1f, 0.97f, 0.86f);
+        existingLight.intensity = 1.08f;
+        existingLight.color = new Color(1f, 0.96f, 0.86f);
         existingLight.transform.rotation = Quaternion.Euler(48f, -30f, 0f);
 
         RenderSettings.ambientMode = AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.72f, 0.82f, 0.92f);
+        RenderSettings.ambientLight = new Color(0.76f, 0.82f, 0.86f);
         ApplyOrbitCamera();
     }
 
@@ -966,24 +1032,24 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         roundedSprite = CreateRoundedSprite(48);
         softRoundedSprite = CreateRoundedSprite(24);
 
-        grassMaterial = MakeMaterial(new Color(0.47f, 0.82f, 0.24f), 0.18f, 0.52f);
-        dirtMaterial = MakeMaterial(new Color(0.63f, 0.39f, 0.2f), 0.16f, 0.35f);
-        waterMaterial = MakeTransparentMaterial(new Color(0.15f, 0.66f, 1f, 0.72f), 0.3f, 0.7f);
-        gridMaterial = MakeTransparentMaterial(new Color(1f, 1f, 1f, 0.42f), 0.05f, 0.1f);
-        whiteMaterial = MakeMaterial(new Color(1f, 0.96f, 0.86f), 0.1f, 0.5f);
+        grassMaterial = MakeMaterial(new Color(0.56f, 0.76f, 0.34f), 0.08f, 0.48f);
+        dirtMaterial = MakeMaterial(new Color(0.54f, 0.38f, 0.24f), 0.08f, 0.34f);
+        waterMaterial = MakeTransparentMaterial(new Color(0.32f, 0.67f, 0.86f, 0.66f), 0.08f, 0.6f);
+        gridMaterial = MakeTransparentMaterial(new Color(1f, 1f, 1f, 0.3f), 0.03f, 0.1f);
+        whiteMaterial = MakeMaterial(new Color(0.98f, 0.95f, 0.86f), 0.04f, 0.48f);
         ghostMaterial = MakeTransparentMaterial(new Color(1f, 1f, 1f, 0.38f), 0.1f, 0.25f);
-        validCursorMaterial = MakeTransparentMaterial(new Color(0.36f, 0.91f, 1f, 0.55f), 0.08f, 0.3f);
-        invalidCursorMaterial = MakeTransparentMaterial(new Color(1f, 0.35f, 0.35f, 0.5f), 0.08f, 0.2f);
+        validCursorMaterial = MakeTransparentMaterial(new Color(0.7f, 0.92f, 1f, 0.55f), 0.04f, 0.32f);
+        invalidCursorMaterial = MakeTransparentMaterial(new Color(0.98f, 0.42f, 0.36f, 0.48f), 0.04f, 0.22f);
     }
 
     private void BuildShapeLibrary()
     {
-        AddShape(ShapeKind.Cube, "Cube", "Cube", new Color(0.14f, 0.46f, 0.91f), new Vector3(0.92f, 0.92f, 0.92f), false);
-        AddShape(ShapeKind.RectangularPrism, "Rectangular Prism", "Long Block", new Color(0.41f, 0.82f, 0.15f), new Vector3(0.9f, 0.5f, 2.05f), true);
-        AddShape(ShapeKind.Plate, "Plate", "Plate", new Color(1f, 0.78f, 0.17f), new Vector3(1.7f, 0.24f, 0.9f), true);
-        AddShape(ShapeKind.Ramp, "Ramp", "Ramp", new Color(0.56f, 0.38f, 0.96f), new Vector3(0.95f, 0.88f, 1.75f), true);
-        AddShape(ShapeKind.TriangularPrism, "Triangular Prism", "Triangle", new Color(0.98f, 0.48f, 0.11f), new Vector3(1.75f, 0.95f, 0.9f), true);
-        AddShape(ShapeKind.Cylinder, "Cylinder", "Cylinder", new Color(0.18f, 0.74f, 0.86f), new Vector3(0.88f, 0.95f, 0.88f), true);
+        AddShape(ShapeKind.Cube, "Cube", "Cube", new Color(0.22f, 0.48f, 0.82f), new Vector3(0.92f, 0.92f, 0.92f), false);
+        AddShape(ShapeKind.RectangularPrism, "Rectangular Prism", "Long Block", new Color(0.52f, 0.72f, 0.28f), new Vector3(0.9f, 0.5f, 2.05f), true);
+        AddShape(ShapeKind.Plate, "Plate", "Plate", new Color(0.93f, 0.68f, 0.22f), new Vector3(1.7f, 0.24f, 0.9f), true);
+        AddShape(ShapeKind.Ramp, "Ramp", "Ramp", new Color(0.55f, 0.46f, 0.78f), new Vector3(0.95f, 0.88f, 1.75f), true);
+        AddShape(ShapeKind.TriangularPrism, "Triangular Prism", "Triangle", new Color(0.86f, 0.48f, 0.22f), new Vector3(1.75f, 0.95f, 0.9f), true);
+        AddShape(ShapeKind.Cylinder, "Cylinder", "Cylinder", new Color(0.32f, 0.68f, 0.76f), new Vector3(0.88f, 0.95f, 0.88f), true);
     }
 
     private void AddShape(ShapeKind kind, string name, string shortName, Color color, Vector3 size, bool directional)
@@ -1382,6 +1448,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     private void CreateLighthouse(Vector3 position)
     {
         Transform root = new GameObject("Lighthouse").transform;
+        lighthouseRoot = root;
         root.SetParent(worldRoot, false);
         root.position = position;
 
@@ -1418,6 +1485,8 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private void CreateTrees()
     {
+        treeRoot = new GameObject("Island Trees").transform;
+        treeRoot.SetParent(worldRoot, false);
         CreateTree(new Vector3(-5.1f, 0.06f, -1.35f));
         CreateTree(new Vector3(-4.6f, 0.06f, 1.75f));
         CreateTree(new Vector3(3.2f, 0.06f, -1.9f));
@@ -1427,7 +1496,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     private void CreateTree(Vector3 position)
     {
         Transform root = new GameObject("Blocky Tree").transform;
-        root.SetParent(worldRoot, false);
+        root.SetParent(treeRoot != null ? treeRoot : worldRoot, false);
         root.position = position;
 
         GameObject trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -1445,6 +1514,20 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
             leaf.transform.localScale = new Vector3(0.48f, 0.4f, 0.48f);
             leaf.GetComponent<Renderer>().sharedMaterial = grassMaterial;
             Destroy(leaf.GetComponent<Collider>());
+        }
+    }
+
+    private void UpdateLevelDecorations(LevelData level)
+    {
+        bool showLighthouse = level.Title.IndexOf("Lighthouse", StringComparison.OrdinalIgnoreCase) >= 0 || level.Number == 20;
+        if (lighthouseRoot != null)
+        {
+            lighthouseRoot.gameObject.SetActive(showLighthouse);
+        }
+
+        if (treeRoot != null)
+        {
+            treeRoot.gameObject.SetActive(true);
         }
     }
 
@@ -1699,6 +1782,8 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         hintCount = 0;
         blueprintVisible = true;
         selectedRotation = 0;
+        selectedBuildLayer = 0;
+        cameraPresetIndex = 0;
 
         if (memoryHideRoutine != null)
         {
@@ -1737,6 +1822,8 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         SetFeedbackText("Choose a shape from the shelf and drag it to the 3D grid.");
         SetRobotHintText(level.Hint);
         SetStarText("* - -");
+        UpdateLevelDecorations(level);
+        ResetBuildCamera();
         RefreshGhosts();
         RefreshProjectionViews();
         RefreshUi();
@@ -1879,6 +1966,70 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         }
 
         return "3D Target + Three Views";
+    }
+
+    private void ChangeBuildLayer(int delta)
+    {
+        selectedBuildLayer = Mathf.Clamp(selectedBuildLayer + delta, 0, 5);
+        SetFeedbackText("Layer " + (selectedBuildLayer + 1) + " selected. Drag a shape to that height.");
+        LogEvent("select_layer", selectedBuildLayer.ToString());
+    }
+
+    private void ResetBuildCamera()
+    {
+        cameraPresetIndex = 0;
+        cameraYaw = 43f;
+        cameraPitch = 43f;
+        cameraDistance = 9.4f;
+        cameraTarget = new Vector3(0f, 0.68f, 0f);
+        ApplyOrbitCamera();
+    }
+
+    private void CycleCameraView()
+    {
+        cameraPresetIndex = (cameraPresetIndex + 1) % 4;
+        if (cameraPresetIndex == 0)
+        {
+            cameraYaw = 43f;
+            cameraPitch = 43f;
+            cameraDistance = 9.4f;
+            SetFeedbackText("Free 3D view. Right-drag to look around.");
+        }
+        else if (cameraPresetIndex == 1)
+        {
+            cameraYaw = 0f;
+            cameraPitch = 46f;
+            cameraDistance = 8.8f;
+            SetFeedbackText("Front 3D view. Right-drag anytime to adjust.");
+        }
+        else if (cameraPresetIndex == 2)
+        {
+            cameraYaw = 90f;
+            cameraPitch = 46f;
+            cameraDistance = 8.8f;
+            SetFeedbackText("Side 3D view. Right-drag anytime to adjust.");
+        }
+        else
+        {
+            cameraYaw = 43f;
+            cameraPitch = 62f;
+            cameraDistance = 8.9f;
+            SetFeedbackText("High 3D view. Use the wheel to zoom.");
+        }
+
+        cameraTarget = new Vector3(0f, 0.68f, 0f);
+        ApplyOrbitCamera();
+        LogEvent("camera_view", cameraPresetIndex.ToString());
+    }
+
+    private string ShortGoal(string goal)
+    {
+        if (string.IsNullOrEmpty(goal) || goal.Length <= 76)
+        {
+            return goal;
+        }
+
+        return goal.Substring(0, 73) + "...";
     }
 
     private void BeginPaletteDrag(ShapeKind kind)
@@ -2117,6 +2268,21 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         {
             RunTest();
         }
+
+        if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.PageUp))
+        {
+            ChangeBuildLayer(1);
+        }
+
+        if (Input.GetKeyDown(KeyCode.Q) || Input.GetKeyDown(KeyCode.PageDown))
+        {
+            ChangeBuildLayer(-1);
+        }
+
+        if (Input.GetKeyDown(KeyCode.V))
+        {
+            CycleCameraView();
+        }
     }
 
     private void UpdateCursorFromMouse(ShapeKind kind, int rotation, PlacedShape ignore)
@@ -2132,7 +2298,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         }
 
         Vector3Int cell = WorldToCell(hit);
-        cell.y = FindTopLayer(cell.x, cell.z, ignore);
+        cell.y = Mathf.Max(selectedBuildLayer, FindTopLayer(cell.x, cell.z, ignore));
         currentCursorCell = cell;
         currentCursorValid = IsPlacementValid(kind, cell, ignore);
         dragCandidateValid = currentCursorValid;

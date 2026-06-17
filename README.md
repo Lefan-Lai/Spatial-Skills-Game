@@ -37,7 +37,10 @@ Every build in the game is made from these simple shapes.
 - Drag a shape from the bottom shelf to the 3D grid.
 - Drag a placed shape to move it.
 - Click `Rotate` or press `R` to turn the selected shape.
-- Click `Run Test` or press `Enter` to check the build.
+- Click `Test` or press `Enter` to check the build.
+- Click `Focus` to shrink the side panels, then click `Show` to bring them back.
+- Click `3D View` or press `V` to cycle clear camera angles.
+- Use the `-` / `+` buttons beside `Layer` or press `Q` / `E` to choose the build height.
 - Right-drag to rotate the camera.
 - Use the mouse wheel to zoom.
 - Right-click a placed shape to remove it.
