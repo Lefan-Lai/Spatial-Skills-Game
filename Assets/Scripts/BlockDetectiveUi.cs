@@ -26,9 +26,9 @@ public sealed partial class BlockDetectiveGame
         scaler.matchWidthOrHeight = 0.5f;
 
         CreatePanel(canvasObject.transform, "Top Bar", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 92f), new Color(0.035f, 0.045f, 0.055f, 0.96f));
-        CreatePanel(canvasObject.transform, "Evidence Panel", new Vector2(0f, 0f), new Vector2(0.29f, 1f), new Vector2(0f, 0.5f), new Vector2(18f, -8f), new Vector2(-24f, -132f), new Color(0.07f, 0.09f, 0.105f, 0.92f));
-        CreatePanel(canvasObject.transform, "Tutor Panel", new Vector2(0.71f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(-18f, -8f), new Vector2(-24f, -132f), new Color(0.065f, 0.08f, 0.095f, 0.92f));
-        CreatePanel(canvasObject.transform, "Bottom Bar", new Vector2(0.29f, 0f), new Vector2(0.71f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 18f), new Vector2(-18f, 116f), new Color(0.045f, 0.055f, 0.065f, 0.94f));
+        CreatePanel(canvasObject.transform, "Evidence Panel", new Vector2(0f, 0f), new Vector2(0.29f, 1f), new Vector2(0f, 0.5f), new Vector2(18f, -8f), new Vector2(-24f, -188f), new Color(0.07f, 0.09f, 0.105f, 0.92f));
+        CreatePanel(canvasObject.transform, "Tutor Panel", new Vector2(0.71f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(-18f, -8f), new Vector2(-24f, -188f), new Color(0.065f, 0.08f, 0.095f, 0.92f));
+        CreatePanel(canvasObject.transform, "Bottom Bar", new Vector2(0.29f, 0f), new Vector2(0.71f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 18f), new Vector2(-18f, 162f), new Color(0.045f, 0.055f, 0.065f, 0.94f));
 
         titleText = CreateText(canvasObject.transform, "Title", "Block Detective 2.0", 30, TextAnchor.UpperLeft, Color.white, new Vector2(0f, 1f), new Vector2(0.44f, 1f), new Vector2(0f, 1f), new Vector2(24f, -16f), new Vector2(-48f, 38f));
         metaText = CreateText(canvasObject.transform, "Meta", "", 17, TextAnchor.UpperLeft, new Color(0.68f, 0.78f, 0.84f, 1f), new Vector2(0f, 1f), new Vector2(0.55f, 1f), new Vector2(0f, 1f), new Vector2(25f, -54f), new Vector2(-44f, 28f));
@@ -43,9 +43,9 @@ public sealed partial class BlockDetectiveGame
         tutorText = CreateText(canvasObject.transform, "Tutor Text", "", 15, TextAnchor.UpperLeft, new Color(0.84f, 0.9f, 0.92f, 1f), new Vector2(0.71f, 0f), new Vector2(1f, 1f), new Vector2(0f, 1f), new Vector2(24f, -156f), new Vector2(-64f, -548f));
         diagnosticText = CreateText(canvasObject.transform, "Diagnostic Text", "", 14, TextAnchor.UpperLeft, new Color(0.94f, 0.86f, 0.62f, 1f), new Vector2(0.71f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(24f, 222f), new Vector2(-64f, 112f));
         cubeText = CreateText(canvasObject.transform, "Cube Text", "", 14, TextAnchor.UpperLeft, new Color(0.75f, 0.92f, 1f, 1f), new Vector2(0.71f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(24f, 100f), new Vector2(-64f, 96f));
-        loadText = CreateText(canvasObject.transform, "Load Text", "", 13, TextAnchor.LowerRight, new Color(0.76f, 0.84f, 0.88f, 1f), new Vector2(0.29f, 0f), new Vector2(0.71f, 0f), new Vector2(1f, 0f), new Vector2(-18f, 134f), new Vector2(-34f, 28f));
-        statusText = CreateText(canvasObject.transform, "Status Text", "", 15, TextAnchor.LowerCenter, Color.white, new Vector2(0.29f, 0f), new Vector2(0.71f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 134f), new Vector2(-36f, 30f));
-        cursorText = CreateText(canvasObject.transform, "Cursor Text", "", 16, TextAnchor.UpperCenter, new Color(0.9f, 0.94f, 0.95f, 1f), new Vector2(0.29f, 0f), new Vector2(0.71f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 84f), new Vector2(-36f, 24f));
+        loadText = CreateText(canvasObject.transform, "Load Text", "", 13, TextAnchor.UpperRight, new Color(0.76f, 0.84f, 0.88f, 1f), new Vector2(0.56f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -56f), new Vector2(-48f, 26f));
+        statusText = CreateText(canvasObject.transform, "Status Text", "", 15, TextAnchor.LowerCenter, Color.white, new Vector2(0.29f, 0f), new Vector2(0.71f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 148f), new Vector2(-36f, 26f));
+        cursorText = CreateText(canvasObject.transform, "Cursor Text", "", 14, TextAnchor.UpperCenter, new Color(0.9f, 0.94f, 0.95f, 1f), new Vector2(0.29f, 0f), new Vector2(0.71f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 120f), new Vector2(-36f, 22f));
 
         teachInput = CreateInputField(canvasObject.transform, "Teach Input", "Teach Cube a spatial rule after feedback...", new Vector2(0.71f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(24f, 24f), new Vector2(-172f, 48f));
         CreateButton(canvasObject.transform, "Teach", new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-28f, 24f), new Vector2(126f, 48f), TeachCube);
@@ -55,30 +55,31 @@ public sealed partial class BlockDetectiveGame
 
     private void AddBuilderButtons(Transform parent)
     {
-        float y1 = 30f;
-        float y2 = 78f;
-        CreateButton(parent, "X-", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-306f, y2), new Vector2(58f, 34f), delegate { MoveCursor(-1, 0, 0); });
-        CreateButton(parent, "X+", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-242f, y2), new Vector2(58f, 34f), delegate { MoveCursor(1, 0, 0); });
-        CreateButton(parent, "Y-", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-178f, y2), new Vector2(58f, 34f), delegate { MoveCursor(0, -1, 0); });
-        CreateButton(parent, "Y+", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-114f, y2), new Vector2(58f, 34f), delegate { MoveCursor(0, 1, 0); });
-        CreateButton(parent, "Z-", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-50f, y2), new Vector2(58f, 34f), delegate { MoveCursor(0, 0, -1); });
-        CreateButton(parent, "Z+", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(14f, y2), new Vector2(58f, 34f), delegate { MoveCursor(0, 0, 1); });
-        CreateButton(parent, "Add", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(92f, y2), new Vector2(72f, 34f), AddBlockAtCursor);
-        CreateButton(parent, "Remove", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(180f, y2), new Vector2(86f, 34f), RemoveBlockAtCursor);
-        CreateButton(parent, "Submit", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(282f, y2), new Vector2(94f, 34f), SubmitAnswer);
+        float y1 = 54f;
+        float y2 = 94f;
+        float y3 = 16f;
+        CreateButton(parent, "X-", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-306f, y2), new Vector2(58f, 30f), delegate { MoveCursor(-1, 0, 0); });
+        CreateButton(parent, "X+", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-242f, y2), new Vector2(58f, 30f), delegate { MoveCursor(1, 0, 0); });
+        CreateButton(parent, "Y-", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-178f, y2), new Vector2(58f, 30f), delegate { MoveCursor(0, -1, 0); });
+        CreateButton(parent, "Y+", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-114f, y2), new Vector2(58f, 30f), delegate { MoveCursor(0, 1, 0); });
+        CreateButton(parent, "Z-", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-50f, y2), new Vector2(58f, 30f), delegate { MoveCursor(0, 0, -1); });
+        CreateButton(parent, "Z+", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(14f, y2), new Vector2(58f, 30f), delegate { MoveCursor(0, 0, 1); });
+        CreateButton(parent, "Add", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(92f, y2), new Vector2(72f, 30f), AddBlockAtCursor);
+        CreateButton(parent, "Remove", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(180f, y2), new Vector2(86f, 30f), RemoveBlockAtCursor);
+        CreateButton(parent, "Submit", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(282f, y2), new Vector2(94f, 30f), SubmitAnswer);
 
-        CreateButton(parent, "Front", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-286f, y1), new Vector2(76f, 34f), delegate { ApplyCameraView(DetectiveView.Front); });
-        CreateButton(parent, "Right", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-202f, y1), new Vector2(76f, 34f), delegate { ApplyCameraView(DetectiveView.Right); });
-        CreateButton(parent, "Top", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-118f, y1), new Vector2(76f, 34f), delegate { ApplyCameraView(DetectiveView.Top); });
-        CreateButton(parent, "Free", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-34f, y1), new Vector2(76f, 34f), delegate { ApplyCameraView(DetectiveView.Free); });
-        CreateButton(parent, "Witness", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(62f, y1), new Vector2(98f, 34f), delegate { ApplyCameraView(DetectiveView.Witness); });
-        CreateButton(parent, "Hint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(168f, y1), new Vector2(76f, 34f), ShowHint);
-        CreateButton(parent, "Reset", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(252f, y1), new Vector2(76f, 34f), ResetBuild);
-        nextButton = CreateButton(parent, "Next", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(336f, y1), new Vector2(76f, 34f), NextCase);
+        CreateButton(parent, "Front", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-286f, y1), new Vector2(76f, 30f), delegate { ApplyCameraView(DetectiveView.Front); });
+        CreateButton(parent, "Right", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-202f, y1), new Vector2(76f, 30f), delegate { ApplyCameraView(DetectiveView.Right); });
+        CreateButton(parent, "Top", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-118f, y1), new Vector2(76f, 30f), delegate { ApplyCameraView(DetectiveView.Top); });
+        CreateButton(parent, "Free", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-34f, y1), new Vector2(76f, 30f), delegate { ApplyCameraView(DetectiveView.Free); });
+        CreateButton(parent, "Witness", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(62f, y1), new Vector2(98f, 30f), delegate { ApplyCameraView(DetectiveView.Witness); });
+        CreateButton(parent, "Hint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(168f, y1), new Vector2(76f, 30f), ShowHint);
+        CreateButton(parent, "Reset", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(252f, y1), new Vector2(76f, 30f), ResetBuild);
+        nextButton = CreateButton(parent, "Next", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(336f, y1), new Vector2(76f, 30f), NextCase);
 
-        CreateButton(parent, "Effort 1", new Vector2(0.29f, 0f), new Vector2(0.29f, 0f), new Vector2(0f, 0f), new Vector2(20f, 18f), new Vector2(88f, 30f), delegate { SetMentalEffort(1); });
-        CreateButton(parent, "Effort 2", new Vector2(0.29f, 0f), new Vector2(0.29f, 0f), new Vector2(0f, 0f), new Vector2(114f, 18f), new Vector2(88f, 30f), delegate { SetMentalEffort(2); });
-        CreateButton(parent, "Effort 3", new Vector2(0.29f, 0f), new Vector2(0.29f, 0f), new Vector2(0f, 0f), new Vector2(208f, 18f), new Vector2(88f, 30f), delegate { SetMentalEffort(3); });
+        CreateButton(parent, "Effort 1", new Vector2(0.29f, 0f), new Vector2(0.29f, 0f), new Vector2(0f, 0f), new Vector2(20f, y3), new Vector2(88f, 26f), delegate { SetMentalEffort(1); });
+        CreateButton(parent, "Effort 2", new Vector2(0.29f, 0f), new Vector2(0.29f, 0f), new Vector2(0f, 0f), new Vector2(114f, y3), new Vector2(88f, 26f), delegate { SetMentalEffort(2); });
+        CreateButton(parent, "Effort 3", new Vector2(0.29f, 0f), new Vector2(0.29f, 0f), new Vector2(0f, 0f), new Vector2(208f, y3), new Vector2(88f, 26f), delegate { SetMentalEffort(3); });
     }
 
     private void UpdateHud()
@@ -93,7 +94,7 @@ public sealed partial class BlockDetectiveGame
         metaText.text = data.Chapter + "  |  " + data.Mode + "  |  " + data.Id;
         scoreText.text = "Score " + score + "   Solved " + solvedCases + "/" + cases.Count + "   Time " + Mathf.FloorToInt(Time.time - caseStartTime) + "s";
         builderText.text = data.Title + "\n" + data.Brief;
-        cursorText.text = "Cursor: x " + cursorCell.x + "  y " + cursorCell.y + "  z " + cursorCell.z + "     Keys: WASD move, Q/E height, Space add/remove, Enter submit";
+        cursorText.text = "Cursor x" + cursorCell.x + " y" + cursorCell.y + " z" + cursorCell.z + " | WASD move | Q/E height | Space toggle | Enter submit";
         loadText.text = "Cognitive load: " + EstimateLoadState() + "   Effort " + mentalEffort + "   Actions " + actionsThisCase + "   View switches " + viewSwitchesThisCase;
     }
 
@@ -548,4 +549,3 @@ public sealed partial class BlockDetectiveGame
         return material;
     }
 }
-
