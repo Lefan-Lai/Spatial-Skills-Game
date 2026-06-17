@@ -8,6 +8,7 @@ using UnityEngine.UI;
 
 public sealed class LittleShapeEngineerGame : MonoBehaviour
 {
+    private static readonly bool UseCanvasUi = false;
     private const int GridMinX = -5;
     private const int GridMaxX = 5;
     private const int GridMinZ = -3;
@@ -175,6 +176,22 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     private int hintCount;
     private Coroutine memoryHideRoutine;
     private Coroutine robotWalkRoutine;
+    private string hudFeedbackText = "拖动形状到发光网格里。";
+    private string hudRobotHintText = "";
+    private string hudStarText = "★ ☆ ☆";
+    private readonly List<Rect> immediateHudRects = new List<Rect>();
+    private readonly Dictionary<string, Texture2D> immediateTextures = new Dictionary<string, Texture2D>();
+    private GUIStyle panelStyle;
+    private GUIStyle titleStyle;
+    private GUIStyle bodyStyle;
+    private GUIStyle smallStyle;
+    private GUIStyle buttonStyle;
+    private GUIStyle testButtonStyle;
+    private GUIStyle badgeStyle;
+    private GUIStyle paletteStyle;
+    private GUIStyle selectedPaletteStyle;
+    private float hudScale = 1f;
+    private Vector2 hudOffset;
 
     private void Awake()
     {
@@ -184,7 +201,11 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         BuildShapeLibrary();
         BuildLevels();
         BuildWorld();
-        BuildUi();
+        if (UseCanvasUi)
+        {
+            BuildUi();
+        }
+
         LoadLevel(0);
     }
 
@@ -194,6 +215,354 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         HandleKeyboardShortcuts();
         HandleBuildInput();
         AnimateWorld();
+    }
+
+    private void OnGUI()
+    {
+        if (UseCanvasUi)
+        {
+            return;
+        }
+
+        PrepareImmediateHud();
+        UpdateImmediateHudRects();
+
+        Matrix4x4 oldMatrix = GUI.matrix;
+        GUI.matrix = Matrix4x4.TRS(hudOffset, Quaternion.identity, new Vector3(hudScale, hudScale, 1f));
+        GUI.depth = 0;
+
+        HandleImmediatePaletteEvents();
+        DrawImmediateTopBar();
+        DrawImmediateMissionCard();
+        DrawImmediateBlueprintCard();
+        DrawImmediatePalette();
+
+        GUI.matrix = oldMatrix;
+    }
+
+    private void PrepareImmediateHud()
+    {
+        hudScale = Mathf.Min(Screen.width / 1920f, Screen.height / 1080f);
+        hudScale = Mathf.Max(0.1f, hudScale);
+        hudOffset = new Vector2((Screen.width - 1920f * hudScale) * 0.5f, (Screen.height - 1080f * hudScale) * 0.5f);
+
+        if (panelStyle != null)
+        {
+            return;
+        }
+
+        panelStyle = MakeGuiStyle(new Color(1f, 0.97f, 0.9f, 0.96f), TextAnchor.UpperLeft, 24, FontStyle.Normal, new Color(0.12f, 0.15f, 0.2f));
+        titleStyle = MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 36, FontStyle.Bold, new Color(0.1f, 0.14f, 0.2f));
+        bodyStyle = MakeGuiStyle(Color.clear, TextAnchor.UpperLeft, 25, FontStyle.Normal, new Color(0.08f, 0.1f, 0.14f));
+        smallStyle = MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 21, FontStyle.Bold, new Color(0.2f, 0.43f, 0.82f));
+        buttonStyle = MakeGuiStyle(new Color(1f, 1f, 1f, 0.94f), TextAnchor.MiddleCenter, 24, FontStyle.Bold, new Color(0.16f, 0.28f, 0.43f));
+        testButtonStyle = MakeGuiStyle(new Color(0.82f, 1f, 0.48f, 0.98f), TextAnchor.MiddleCenter, 28, FontStyle.Bold, new Color(0.18f, 0.5f, 0.06f));
+        badgeStyle = MakeGuiStyle(new Color(0.13f, 0.48f, 0.9f, 0.96f), TextAnchor.MiddleCenter, 23, FontStyle.Bold, Color.white);
+        paletteStyle = MakeGuiStyle(new Color(1f, 1f, 1f, 0.9f), TextAnchor.MiddleCenter, 20, FontStyle.Bold, new Color(0.1f, 0.13f, 0.18f));
+        selectedPaletteStyle = MakeGuiStyle(new Color(0.84f, 0.94f, 1f, 0.98f), TextAnchor.MiddleCenter, 20, FontStyle.Bold, new Color(0.05f, 0.22f, 0.44f));
+    }
+
+    private GUIStyle MakeGuiStyle(Color background, TextAnchor alignment, int fontSize, FontStyle fontStyle, Color textColor)
+    {
+        GUIStyle style = new GUIStyle(GUI.skin.box);
+        style.normal.background = background.a <= 0.01f ? null : GetImmediateTexture(background);
+        style.hover.background = style.normal.background;
+        style.active.background = style.normal.background;
+        style.normal.textColor = textColor;
+        style.hover.textColor = textColor;
+        style.active.textColor = textColor;
+        style.alignment = alignment;
+        style.fontSize = fontSize;
+        style.fontStyle = fontStyle;
+        style.wordWrap = true;
+        style.padding = new RectOffset(12, 12, 8, 8);
+        return style;
+    }
+
+    private Texture2D GetImmediateTexture(Color color)
+    {
+        string key = ColorUtility.ToHtmlStringRGBA(color);
+        Texture2D texture;
+        if (immediateTextures.TryGetValue(key, out texture))
+        {
+            return texture;
+        }
+
+        texture = new Texture2D(1, 1, TextureFormat.ARGB32, false);
+        texture.SetPixel(0, 0, color);
+        texture.Apply();
+        immediateTextures[key] = texture;
+        return texture;
+    }
+
+    private void UpdateImmediateHudRects()
+    {
+        immediateHudRects.Clear();
+        immediateHudRects.Add(new Rect(18f, 20f, 230f, 108f));
+        immediateHudRects.Add(new Rect(590f, 18f, 740f, 106f));
+        immediateHudRects.Add(new Rect(1690f, 20f, 205f, 108f));
+        immediateHudRects.Add(new Rect(24f, 150f, 326f, 744f));
+        immediateHudRects.Add(new Rect(1530f, 150f, 366f, 744f));
+        immediateHudRects.Add(new Rect(360f, 844f, 1200f, 206f));
+    }
+
+    private void DrawImmediateTopBar()
+    {
+        if (GUI.Button(new Rect(20f, 24f, 100f, 82f), "返回", buttonStyle))
+        {
+            PreviousLevel();
+        }
+
+        if (GUI.Button(new Rect(136f, 24f, 100f, 82f), "主页", buttonStyle))
+        {
+            LoadLevel(0);
+        }
+
+        DrawPanel(new Rect(590f, 18f, 740f, 98f), new Color(1f, 1f, 1f, 0.92f));
+        GUI.enabled = undoStack.Count > 0;
+        if (GUI.Button(new Rect(615f, 32f, 132f, 70f), "撤销", buttonStyle))
+        {
+            Undo();
+        }
+
+        GUI.enabled = redoStack.Count > 0;
+        if (GUI.Button(new Rect(765f, 32f, 132f, 70f), "重做", buttonStyle))
+        {
+            Redo();
+        }
+
+        GUI.enabled = true;
+        if (GUI.Button(new Rect(915f, 32f, 150f, 70f), "旋转", buttonStyle))
+        {
+            RotateSelected();
+        }
+
+        if (GUI.Button(new Rect(1085f, 28f, 215f, 78f), "测试", testButtonStyle))
+        {
+            RunTest();
+        }
+
+        if (GUI.Button(new Rect(1710f, 24f, 170f, 82f), "下一关", buttonStyle))
+        {
+            NextLevel();
+        }
+    }
+
+    private void DrawImmediateMissionCard()
+    {
+        LevelData level = CurrentLevel;
+        Rect panel = new Rect(24f, 150f, 326f, 744f);
+        DrawPanel(panel, new Color(1f, 0.97f, 0.9f, 0.96f));
+
+        GUI.Label(new Rect(50f, 174f, 260f, 34f), level.World, smallStyle);
+        GUI.Label(new Rect(50f, 210f, 260f, 54f), level.Title, titleStyle);
+        GUI.Label(new Rect(50f, 272f, 230f, 36f), LevelTaskLabel(level), smallStyle);
+        GUI.Label(new Rect(50f, 330f, 254f, 150f), level.Goal, bodyStyle);
+
+        Rect robot = new Rect(44f, 506f, 286f, 176f);
+        DrawPanel(robot, new Color(0.85f, 0.95f, 1f, 0.9f));
+        DrawRobotFace(new Rect(62f, 548f, 88f, 88f));
+        string hint = string.IsNullOrEmpty(hudRobotHintText) ? level.Hint : hudRobotHintText;
+        GUI.Label(new Rect(162f, 532f, 142f, 112f), hint, bodyStyle);
+
+        Rect progress = new Rect(44f, 704f, 286f, 150f);
+        DrawPanel(progress, new Color(1f, 1f, 1f, 0.86f));
+        GUI.Label(new Rect(62f, 724f, 220f, 34f), "进度  第 " + level.Number + " / " + levels.Count + " 关", smallStyle);
+        GUI.Label(new Rect(62f, 776f, 236f, 42f), hudStarText, MakeGuiStyle(Color.clear, TextAnchor.MiddleLeft, 40, FontStyle.Bold, new Color(1f, 0.68f, 0.1f)));
+    }
+
+    private void DrawRobotFace(Rect rect)
+    {
+        DrawPanel(rect, new Color(0.96f, 0.99f, 1f, 1f));
+        DrawSolid(new Rect(rect.x + 18f, rect.y + 28f, rect.width - 36f, 30f), new Color(0.03f, 0.12f, 0.17f, 1f));
+        DrawSolid(new Rect(rect.x + 32f, rect.y + 38f, 10f, 10f), new Color(0.25f, 1f, 1f, 1f));
+        DrawSolid(new Rect(rect.x + rect.width - 42f, rect.y + 38f, 10f, 10f), new Color(0.25f, 1f, 1f, 1f));
+        DrawSolid(new Rect(rect.x + 40f, rect.y - 10f, 8f, 22f), new Color(0.18f, 0.58f, 0.95f, 1f));
+        DrawSolid(new Rect(rect.x + 34f, rect.y - 18f, 20f, 20f), new Color(0.25f, 1f, 1f, 1f));
+    }
+
+    private void DrawImmediateBlueprintCard()
+    {
+        LevelData level = CurrentLevel;
+        Rect panel = new Rect(1530f, 150f, 366f, 744f);
+        DrawPanel(panel, new Color(0.94f, 0.99f, 1f, 0.96f));
+        DrawSolid(new Rect(1530f, 150f, 366f, 72f), new Color(0.1f, 0.47f, 0.9f, 1f));
+        GUI.Label(new Rect(1530f, 158f, 366f, 52f), "图纸", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 34, FontStyle.Bold, Color.white));
+        GUI.Label(new Rect(1562f, 246f, 280f, 34f), BlueprintLabel(level), smallStyle);
+
+        DrawProjectionImmediate(new Rect(1560f, 302f, 306f, 150f), "俯视图", 0);
+        DrawProjectionImmediate(new Rect(1560f, 486f, 306f, 150f), "正面图", 1);
+        DrawProjectionImmediate(new Rect(1560f, 670f, 306f, 150f), "侧面图", 2);
+    }
+
+    private void DrawProjectionImmediate(Rect rect, string label, int mode)
+    {
+        DrawPanel(rect, new Color(1f, 1f, 1f, 0.86f));
+        GUI.Label(new Rect(rect.x + 16f, rect.y + 8f, 200f, 30f), label, smallStyle);
+
+        Rect grid = new Rect(rect.x + 18f, rect.y + 48f, rect.width - 36f, rect.height - 64f);
+        DrawSolid(grid, new Color(0.9f, 0.96f, 1f, 0.55f));
+        int cols = 9;
+        int rows = 5;
+        float cw = grid.width / cols;
+        float ch = grid.height / rows;
+        for (int x = 0; x < cols; x++)
+        {
+            for (int y = 0; y < rows; y++)
+            {
+                DrawSolid(new Rect(grid.x + x * cw + 1f, grid.y + y * ch + 1f, cw - 2f, ch - 2f), new Color(1f, 1f, 1f, 0.3f));
+            }
+        }
+
+        if (!blueprintVisible)
+        {
+            GUI.Label(grid, "?", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 44, FontStyle.Bold, new Color(0.2f, 0.45f, 0.8f)));
+            return;
+        }
+
+        for (int i = 0; i < CurrentLevel.Target.Count; i++)
+        {
+            TargetShape target = CurrentLevel.Target[i];
+            int col;
+            int row;
+            if (mode == 0)
+            {
+                col = target.Cell.x + 4;
+                row = target.Cell.z + 2;
+            }
+            else if (mode == 1)
+            {
+                col = target.Cell.x + 4;
+                row = target.Cell.y;
+            }
+            else
+            {
+                col = target.Cell.z + 4;
+                row = target.Cell.y;
+            }
+
+            if (col < 0 || col >= cols || row < 0 || row >= rows)
+            {
+                continue;
+            }
+
+            Color mark = shapes[target.Kind].Color;
+            mark.a = 0.95f;
+            DrawSolid(new Rect(grid.x + col * cw + 4f, grid.y + (rows - 1 - row) * ch + 4f, cw - 8f, ch - 8f), mark);
+        }
+    }
+
+    private void DrawImmediatePalette()
+    {
+        DrawPanel(new Rect(360f, 844f, 1200f, 206f), new Color(1f, 0.98f, 0.92f, 0.96f));
+        DrawSolid(new Rect(450f, 792f, 1020f, 46f), new Color(0.1f, 0.47f, 0.9f, 0.88f));
+        GUI.Label(new Rect(450f, 792f, 1020f, 46f), hudFeedbackText, MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 26, FontStyle.Bold, Color.white));
+
+        ShapeKind[] order = new ShapeKind[]
+        {
+            ShapeKind.Cube,
+            ShapeKind.RectangularPrism,
+            ShapeKind.Plate,
+            ShapeKind.Ramp,
+            ShapeKind.TriangularPrism,
+            ShapeKind.Cylinder
+        };
+
+        for (int i = 0; i < order.Length; i++)
+        {
+            ShapeKind kind = order[i];
+            Rect card = PaletteCardRect(i);
+            GUIStyle style = kind == selectedKind ? selectedPaletteStyle : paletteStyle;
+            GUI.Box(card, GUIContent.none, style);
+            DrawShapeBadge(new Rect(card.x + 40f, card.y + 18f, 100f, 54f), kind);
+            GUI.Label(new Rect(card.x + 10f, card.y + 78f, card.width - 20f, 28f), shapes[kind].Name, style);
+            GUI.Label(new Rect(card.x + card.width * 0.5f - 28f, card.y + 112f, 56f, 30f), GetRemaining(kind).ToString(), badgeStyle);
+        }
+    }
+
+    private Rect PaletteCardRect(int index)
+    {
+        return new Rect(384f + index * 190f, 870f, 168f, 156f);
+    }
+
+    private void DrawShapeBadge(Rect rect, ShapeKind kind)
+    {
+        Color color = shapes[kind].Color;
+        if (kind == ShapeKind.RectangularPrism)
+        {
+            DrawSolid(new Rect(rect.x + 2f, rect.y + 16f, rect.width - 4f, 30f), color);
+        }
+        else if (kind == ShapeKind.Plate)
+        {
+            DrawSolid(new Rect(rect.x + 8f, rect.y + 26f, rect.width - 16f, 18f), color);
+        }
+        else if (kind == ShapeKind.Ramp)
+        {
+            DrawSolid(new Rect(rect.x + 14f, rect.y + 30f, rect.width - 28f, 18f), color);
+            GUI.Label(new Rect(rect.x, rect.y - 2f, rect.width, rect.height), "▲", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 52, FontStyle.Bold, color));
+        }
+        else if (kind == ShapeKind.TriangularPrism)
+        {
+            GUI.Label(rect, "▲", MakeGuiStyle(Color.clear, TextAnchor.MiddleCenter, 56, FontStyle.Bold, color));
+        }
+        else if (kind == ShapeKind.Cylinder)
+        {
+            DrawSolid(new Rect(rect.x + 30f, rect.y + 10f, rect.width - 60f, rect.height - 20f), color);
+            DrawSolid(new Rect(rect.x + 22f, rect.y + 8f, rect.width - 44f, 14f), Color.Lerp(color, Color.white, 0.25f));
+        }
+        else
+        {
+            DrawSolid(new Rect(rect.x + 24f, rect.y + 10f, rect.width - 48f, rect.height - 20f), color);
+        }
+    }
+
+    private void HandleImmediatePaletteEvents()
+    {
+        Event current = Event.current;
+        Vector2 mouse = MouseDesignPosition();
+
+        if (current.type == EventType.MouseDown && current.button == 0)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                Rect card = PaletteCardRect(i);
+                if (!card.Contains(mouse))
+                {
+                    continue;
+                }
+
+                ShapeKind kind = (ShapeKind)i;
+                BeginPaletteDrag(kind);
+                current.Use();
+                return;
+            }
+        }
+
+        if (current.type == EventType.MouseUp && current.button == 0 && draggingFromPalette)
+        {
+            EndPaletteDrag();
+            current.Use();
+        }
+    }
+
+    private void DrawPanel(Rect rect, Color color)
+    {
+        DrawSolid(new Rect(rect.x + 5f, rect.y + 6f, rect.width, rect.height), new Color(0.06f, 0.12f, 0.18f, 0.18f));
+        DrawSolid(rect, color);
+        DrawSolid(new Rect(rect.x, rect.y, rect.width, 3f), new Color(1f, 1f, 1f, 0.6f));
+    }
+
+    private void DrawSolid(Rect rect, Color color)
+    {
+        GUI.DrawTexture(rect, GetImmediateTexture(color));
+    }
+
+    private Vector2 MouseDesignPosition()
+    {
+        return new Vector2(
+            (Input.mousePosition.x - hudOffset.x) / hudScale,
+            (Screen.height - Input.mousePosition.y - hudOffset.y) / hudScale
+        );
     }
 
     private void SetupCameraAndLight()
@@ -1001,6 +1370,9 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         }
 
         selectedKind = FirstAvailableKind();
+        SetFeedbackText("选择底部形状，拖到 3D 网格里。");
+        SetRobotHintText(level.Hint);
+        SetStarText("★ ☆ ☆");
         RefreshGhosts();
         RefreshProjectionViews();
         RefreshUi();
@@ -1032,27 +1404,31 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private IEnumerator HideBlueprintAfterSeconds(float seconds)
     {
-        robotHintText.text = "先认真看图纸。";
+        SetRobotHintText("先认真看图纸。");
         yield return new WaitForSeconds(seconds);
         blueprintVisible = false;
-        robotHintText.text = "现在凭记忆搭出来。";
+        SetRobotHintText("现在凭记忆搭出来。");
         RefreshGhosts();
         RefreshProjectionViews();
     }
 
     private void RefreshUi()
     {
+        if (titleText == null)
+        {
+            return;
+        }
+
         LevelData level = CurrentLevel;
         titleText.text = level.Title;
         worldText.text = level.World;
         taskText.text = LevelTaskLabel(level);
         goalText.text = level.Goal;
-        robotHintText.text = level.Hint;
+        SetRobotHintText(level.Hint);
         progressText.text = "第 " + level.Number + " / " + levels.Count + " 关";
         blueprintTitleText.text = "图纸";
         blueprintTypeText.text = BlueprintLabel(level);
-        starText.text = GetSolvedCount() == level.Target.Count ? "★ ★ ★" : "★ ☆ ☆";
-        feedbackText.text = "选择形状，直接拖到 3D 网格里。";
+        SetStarText(GetSolvedCount() == level.Target.Count ? "★ ★ ★" : "★ ☆ ☆");
 
         foreach (KeyValuePair<ShapeKind, Text> pair in paletteCounts)
         {
@@ -1073,6 +1449,33 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         undoButton.interactable = undoStack.Count > 0;
         redoButton.interactable = redoStack.Count > 0;
         nextButton.interactable = true;
+    }
+
+    private void SetFeedbackText(string value)
+    {
+        hudFeedbackText = value;
+        if (feedbackText != null)
+        {
+            feedbackText.text = value;
+        }
+    }
+
+    private void SetRobotHintText(string value)
+    {
+        hudRobotHintText = value;
+        if (robotHintText != null)
+        {
+            robotHintText.text = value;
+        }
+    }
+
+    private void SetStarText(string value)
+    {
+        hudStarText = value;
+        if (starText != null)
+        {
+            starText.text = value;
+        }
     }
 
     private string LevelTaskLabel(LevelData level)
@@ -1118,7 +1521,7 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
     {
         if (GetRemaining(kind) <= 0)
         {
-            robotHintText.text = "这种形状已经用完了。";
+            SetRobotHintText("这种形状已经用完了。");
             return;
         }
 
@@ -1484,9 +1887,9 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
         if (diagnostic.Passed)
         {
-            feedbackText.text = "成功！小岛又被修好了一点。";
-            robotHintText.text = "太棒了！这些基础形状组合成了真正有用的结构。";
-            starText.text = "★ ★ ★";
+            SetFeedbackText("成功！小岛又被修好了一点。");
+            SetRobotHintText("太棒了！这些基础形状组合成了真正有用的结构。");
+            SetStarText("★ ★ ★");
             FlashLighthouse();
 
             if (CurrentLevel.Task == TaskKind.Functional || CurrentLevel.Number == 1)
@@ -1502,9 +1905,9 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
         else
         {
             hintCount++;
-            feedbackText.text = diagnostic.Message;
-            robotHintText.text = diagnostic.Hint;
-            starText.text = "★ ☆ ☆";
+            SetFeedbackText(diagnostic.Message);
+            SetRobotHintText(diagnostic.Hint);
+            SetStarText("★ ☆ ☆");
             RefreshGhosts();
         }
 
@@ -1674,6 +2077,11 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private void RefreshProjectionViews()
     {
+        if (topProjectionGrid == null || frontProjectionGrid == null || sideProjectionGrid == null)
+        {
+            return;
+        }
+
         RefreshProjection(topProjectionGrid, 0);
         RefreshProjection(frontProjectionGrid, 1);
         RefreshProjection(sideProjectionGrid, 2);
@@ -2260,7 +2668,33 @@ public sealed class LittleShapeEngineerGame : MonoBehaviour
 
     private bool IsPointerOverUi()
     {
-        return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        {
+            return true;
+        }
+
+        if (!UseCanvasUi && IsPointerOverImmediateHud())
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool IsPointerOverImmediateHud()
+    {
+        PrepareImmediateHud();
+        UpdateImmediateHudRects();
+        Vector2 mouse = MouseDesignPosition();
+        for (int i = 0; i < immediateHudRects.Count; i++)
+        {
+            if (immediateHudRects[i].Contains(mouse))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void LogEvent(string action, string detail)
